@@ -8,6 +8,9 @@
   <meta name="apple-mobile-web-app-title" content="乗務前チェック">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>広島タクシー乗務前チェック</title>
+  <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="../assets/tsubame-icon-192.png">
   <style>
     :root {
       --bg: #0b1220;
@@ -76,9 +79,16 @@
       display: grid;
       place-items: center;
       border-radius: 13px;
-      background: linear-gradient(135deg, #f59e0b, #ef4444);
+      background: #f59e0b;
       box-shadow: 0 8px 18px rgba(0,0,0,.28);
-      font-size: 22px;
+      overflow: hidden;
+    }
+
+    .badge img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
     }
 
     h1 {
@@ -531,7 +541,7 @@
   <div class="wrap">
     <header>
       <div class="title">
-        <div class="badge">🚕</div>
+        <div class="badge"><img src="../assets/tsubame-icon-192.png" alt="ツバメ交通"></div>
         <div>
           <h1>広島タクシー乗務前チェック</h1>
           <div class="date" id="today">今日の日付を読み込み中...</div>
@@ -545,7 +555,7 @@
         <ul id="autoList" class="auto-list">
           <li>巡回データを読み込んでいます...</li>
         </ul>
-        <div class="auto-note">試験版です。最終判断は必ず各公式サイトで確認してください。</div>
+        <div class="auto-note">試験版です。天気・道路・運行・イベントの最終判断は必ず各公式サイトで確認してください。</div>
       </div>
     </section>
 
@@ -660,7 +670,7 @@
     </div>
 
     <div class="footer">
-      個人用ダッシュボードです。道路・運行・フライト等の最終確認は必ず各公式サイトで行ってください。自動巡回版：試験版。
+      個人用ダッシュボードです。道路・運行・フライト等の最終確認は必ず各公式サイトで行ってください。手動リンク版：ロゴアイコン対応版。
     </div>
   </div>
 
