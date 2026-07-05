@@ -17,31 +17,34 @@ const sources = [
     id: "jr",
     label: "JR西日本 中国エリア",
     url: "https://trafficinfo.westjr.co.jp/chugoku.html",
-    keywords: ["遅延", "運転見合わせ", "運休", "お知らせ", "列車に遅れ"]
+    keywords: ["遅延", "運転見合わせ", "運休", "列車に遅れ"]
   },
   {
     id: "hiroden",
     label: "広島電鉄",
     url: "https://www.hiroden.co.jp/traffic/info/",
-    keywords: ["運休", "遅れ", "遅延", "運転見合わせ", "運行情報"]
+    keywords: ["運休", "遅れ", "遅延", "運転見合わせ"]
   },
   {
     id: "hiroshima-airport",
     label: "広島空港",
     url: "https://www.hij.airport.jp/flight/flight_da.html",
-    keywords: ["遅延", "欠航", "条件付", "到着済", "出発済"]
-  },
+    keywords: ["遅延", "欠航", "条件付"]
+  }
+];
+
+const eventSources = [
   {
-    id: "carp",
-    label: "カープ日程",
+    id: "carp-home",
+    label: "カープ本拠地開催",
     url: "https://www.ticket.carp.co.jp/calendar/",
-    keywords: ["マツダ スタジアム", "試合", "広島", "チケット"]
+    venueKeywords: ["マツダ スタジアム", "マツダスタジアム", "MAZDA Zoom-Zoom スタジアム", "ズムスタ"]
   },
   {
-    id: "sanfrecce",
-    label: "サンフレッチェ日程",
+    id: "sanfrecce-home",
+    label: "サンフレッチェ広島開催",
     url: "https://www.sanfrecce.co.jp/matches/results",
-    keywords: ["試合", "エディオンピースウイング", "広島", "チケット"]
+    venueKeywords: ["エディオンピースウイング", "エディオンピースウイング広島", "Eピース", "広島"]
   }
 ];
 
@@ -56,6 +59,10 @@ function stripHtml(html) {
     .trim();
 }
 
+function toJstDate(date = new Date()) {
+  return new Date(date.toLocaleString("en-US", { timeZone: "Asia/Tokyo" }));
+}
+
 function toJstString(date) {
   return new Intl.DateTimeFormat("ja-JP", {
     timeZone: "Asia/Tokyo",
@@ -68,24 +75,36 @@ function toJstString(date) {
   }).format(date);
 }
 
+function todayPatternsJst() {
+  const now = toJstDate();
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+  const d = now.getDate();
+  const mm = String(m).padStart(2, "0");
+  const dd = String(d).padStart(2, "0");
+  return [
+    `${y}/${mm}/${dd}`,
+    `${y}-${mm}-${dd}`,
+    `${m}/${d}`,
+    `${mm}/${dd}`,
+    `${m}月${d}日`,
+    `${mm}月${dd}日`
+  ];
+}
+
+async function fetchText(url) {
+  const res = await fetch(url, {
+    headers: {
+      "user-agent": "Mozilla/5.0 GitHubActions hiroshima-taxi-dashboard personal checker"
+    }
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return await res.text();
+}
+
 async function checkSource(source) {
   try {
-    const res = await fetch(source.url, {
-      headers: {
-        "user-agent": "Mozilla/5.0 GitHubActions hiroshima-taxi-dashboard personal checker"
-      }
-    });
-
-    if (!res.ok) {
-      return {
-        label: source.label,
-        url: source.url,
-        level: "error",
-        message: `取得失敗（HTTP ${res.status}）。公式リンクで確認`
-      };
-    }
-
-    const html = await res.text();
+    const html = await fetchText(source.url);
     const text = stripHtml(html);
     const hits = source.keywords.filter(k => text.includes(k));
 
@@ -114,16 +133,140 @@ async function checkSource(source) {
   }
 }
 
+async function checkHomeEvent(source) {
+  try {
+    const html = await fetchText(source.url);
+    const text = stripHtml(html);
+    const dateHit = todayPatternsJst().some(p => text.includes(p));
+    const venueHit = source.venueKeywords.some(k => text.includes(k));
+
+    if (dateHit && venueHit) {
+      return {
+        label: source.label,
+        url: source.url,
+        level: "alert",
+        message: "本日、広島市内開催の可能性あり。公式日程を確認"
+      };
+    }
+
+    if (dateHit && !venueHit) {
+      return {
+        label: source.label,
+        url: source.url,
+        level: "ok",
+        message: "本日の日付は検出。ただし広島市内開催語は未検出"
+      };
+    }
+
+    return {
+      label: source.label,
+      url: source.url,
+      level: "ok",
+      message: "本日の広島市内開催は検出なし"
+    };
+  } catch (error) {
+    return {
+      label: source.label,
+      url: source.url,
+      level: "error",
+      message: "取得できませんでした。公式日程で確認"
+    };
+  }
+}
+
+function findAreaTimeSeries(data, areaNames) {
+  for (const block of data) {
+    for (const ts of block.timeSeries || []) {
+      for (const area of ts.areas || []) {
+        if (areaNames.some(name => area.area?.name?.includes(name))) {
+          return { timeSeries: ts, area };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+async function checkWeather() {
+  const url = "https://www.jma.go.jp/bosai/forecast/data/forecast/340000.json";
+  try {
+    const res = await fetch(url, { headers: { "user-agent": "Mozilla/5.0 GitHubActions hiroshima-taxi-dashboard weather checker" } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    const weatherSeries = findAreaTimeSeries(data, ["広島", "南部"]);
+    const popSeries = (() => {
+      for (const block of data) {
+        for (const ts of block.timeSeries || []) {
+          for (const area of ts.areas || []) {
+            if (area.pops && (area.area?.name?.includes("広島") || area.area?.name?.includes("南部"))) {
+              return { timeSeries: ts, area };
+            }
+          }
+        }
+      }
+      return null;
+    })();
+
+    let weatherText = "";
+    if (weatherSeries?.area?.weathers?.length) {
+      weatherText = weatherSeries.area.weathers.slice(0, 2).join(" → ");
+    }
+
+    let popText = "";
+    if (popSeries?.area?.pops?.length) {
+      const pops = popSeries.area.pops.slice(0, 4).filter(v => v !== "");
+      if (pops.length) {
+        const first = pops[0] ?? "-";
+        const second = pops[Math.min(1, pops.length - 1)] ?? "-";
+        const third = pops[Math.min(2, pops.length - 1)] ?? "";
+        if (third && third !== second) {
+          popText = `降水確率 ${first}% → ${second}% → ${third}%`;
+        } else {
+          popText = `降水確率 午前目安 ${first}%、午後目安 ${second}%`;
+        }
+      }
+    }
+
+    const msg = [weatherText, popText].filter(Boolean).join("／") || "天気情報を取得。詳細は気象庁で確認";
+
+    const level = /雨|雪|雷|荒/.test(msg) || /([6-9]0|100)%/.test(msg) ? "alert" : "ok";
+
+    return {
+      label: "広島市周辺天気",
+      url: "https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=340000",
+      level,
+      message: msg
+    };
+  } catch (error) {
+    return {
+      label: "広島市周辺天気",
+      url: "https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=340000",
+      level: "error",
+      message: "天気情報を取得できませんでした。気象庁で確認"
+    };
+  }
+}
+
 async function main() {
   const items = [];
+
+  // Weather first because it affects the whole shift.
+  items.push(await checkWeather());
+
   for (const source of sources) {
     items.push(await checkSource(source));
+  }
+
+  for (const source of eventSources) {
+    items.push(await checkHomeEvent(source));
   }
 
   const now = new Date();
   const data = {
     updatedAt: now.toISOString(),
     updatedAtJst: toJstString(now),
+    scheduleNote: "JST 00:00 / 06:00 / 12:00 / 18:00 目安で更新",
     items
   };
 
