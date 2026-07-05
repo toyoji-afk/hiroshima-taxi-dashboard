@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="乗務前チェック">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>広島タクシー乗務前チェック</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #172033;
+      --card2: #1f2937;
+      --text: #f8fafc;
+      --muted: #cbd5e1;
+      --line: rgba(255,255,255,.12);
+      --accent: #f59e0b;
+      --accent2: #38bdf8;
+      --ok: #22c55e;
+      --warn: #f97316;
+      --danger: #ef4444;
+      --shadow: 0 12px 28px rgba(0,0,0,.32);
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Yu Gothic", Meiryo, sans-serif;
+      background: radial-gradient(circle at top, #1f2937 0%, var(--bg) 45%, #030712 100%);
+      color: var(--text);
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap {
+      width: min(980px, 100%);
+      margin: 0 auto;
+      padding: 18px 14px 88px;
+    }
+    header {
+      padding: 18px 2px 12px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(14px);
+      background: linear-gradient(to bottom, rgba(15,23,42,.96), rgba(15,23,42,.80), rgba(15,23,42,0));
+    }
+    .title {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .badge {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--accent), #ef4444);
+      box-shadow: var(--shadow);
+      font-size: 24px;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(22px, 6vw, 34px);
+      letter-spacing: .02em;
+      line-height: 1.15;
+    }
+    .date {
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 2px;
+    }
+    .toolbar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    button, .mini {
+      border: 1px solid var(--line);
+      color: var(--text);
+      background: rgba(255,255,255,.08);
+      border-radius: 14px;
+      padding: 11px 12px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    button:active, .link:active { transform: scale(.985); }
+    .notice {
+      margin: 14px 0;
+      padding: 13px 14px;
+      border: 1px solid rgba(245,158,11,.45);
+      border-radius: var(--radius);
+      background: rgba(245,158,11,.10);
+      color: #fffbeb;
+      font-size: 14px;
+    }
+    .quick {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 10px;
+      margin: 14px 0 18px;
+    }
+    .quick .link {
+      min-height: 66px;
+      font-weight: 700;
+      background: linear-gradient(135deg, rgba(245,158,11,.20), rgba(56,189,248,.10));
+      border-color: rgba(255,255,255,.18);
+    }
+    section {
+      margin: 18px 0;
+      border: 1px solid var(--line);
+      background: rgba(23,32,51,.88);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .section-head {
+      padding: 16px 15px 12px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      background: rgba(255,255,255,.04);
+    }
+    h2 {
+      margin: 0;
+      font-size: 19px;
+    }
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      padding: 12px;
+    }
+    .link {
+      display: grid;
+      grid-template-columns: 44px 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 13px;
+      min-height: 70px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.055);
+      border: 1px solid rgba(255,255,255,.10);
+      transition: transform .08s ease, background .12s ease;
+    }
+    .link:hover { background: rgba(255,255,255,.09); }
+    .icon {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      background: rgba(255,255,255,.09);
+      font-size: 23px;
+    }
+    .name {
+      font-weight: 720;
+      font-size: 16px;
+    }
+    .desc {
+      color: var(--muted);
+      font-size: 12.5px;
+      margin-top: 2px;
+    }
+    .arrow {
+      color: rgba(255,255,255,.55);
+      font-size: 22px;
+    }
+    .checkrow {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 12px;
+      border-top: 1px solid var(--line);
+      background: rgba(0,0,0,.10);
+    }
+    .check {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-weight: 700;
+    }
+    .check.done {
+      background: rgba(34,197,94,.18);
+      border-color: rgba(34,197,94,.50);
+    }
+    textarea {
+      width: 100%;
+      min-height: 110px;
+      color: var(--text);
+      background: rgba(255,255,255,.06);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      font: inherit;
+      resize: vertical;
+      outline: none;
+    }
+    .footer {
+      color: var(--muted);
+      font-size: 12px;
+      padding: 10px 4px;
+    }
+    .bottom-nav {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+      background: rgba(3,7,18,.88);
+      backdrop-filter: blur(16px);
+      border-top: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      z-index: 20;
+    }
+    .bottom-nav a {
+      text-align: center;
+      padding: 9px 5px;
+      border-radius: 13px;
+      background: rgba(255,255,255,.07);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    @media (min-width: 720px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+      .quick { grid-template-columns: repeat(4, 1fr); }
+      .toolbar { grid-template-columns: 200px 200px; }
+      .bottom-nav { display: none; }
+      .wrap { padding-bottom: 40px; }
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f1f5f9;
+        --card: #ffffff;
+        --card2: #e2e8f0;
+        --text: #0f172a;
+        --muted: #475569;
+        --line: rgba(15,23,42,.12);
+      }
+      body { background: linear-gradient(#e2e8f0, #f8fafc); }
+      header { background: linear-gradient(to bottom, rgba(241,245,249,.96), rgba(241,245,249,.80), rgba(241,245,249,0)); }
+      .bottom-nav { background: rgba(248,250,252,.90); }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">
+        <div class="badge">🚕</div>
+        <div>
+          <h1>広島タクシー<br>乗務前チェック</h1>
+          <div class="date" id="today">今日の日付を読み込み中...</div>
+        </div>
+      </div>
+      <div class="toolbar">
+        <button id="resetChecks">今日のチェックをリセット</button>
+        <button id="copyMemo">メモをコピー</button>
+      </div>
+    </header>
+
+    <div class="notice">
+      <strong>使い方：</strong>乗務前や休憩中に、上から順に確認。公式サイトで最終確認し、確認後は「チェック済み」を押すと、この端末に今日の状態が保存されます。
+    </div>
+
+    <div class="quick">
+      <a class="link" href="https://www.jartic.or.jp/map/?p=R34" target="_blank" rel="noopener"><span class="icon">🚦</span><span><span class="name">JARTIC</span><span class="desc">事故・渋滞</span></span><span class="arrow">›</span></a>
+      <a class="link" href="https://www.roadnavi.pref.hiroshima.lg.jp/" target="_blank" rel="noopener"><span class="icon">🛣️</span><span><span class="name">道路ナビ</span><span class="desc">規制・道路カメラ</span></span><span class="arrow">›</span></a>
+      <a class="link" href="https://trafficinfo.westjr.co.jp/chugoku.html" target="_blank" rel="noopener"><span class="icon">🚃</span><span><span class="name">JR中国</span><span class="desc">運行情報</span></span><span class="arrow">›</span></a>
+      <a class="link" href="https://www.hiroden.co.jp/traffic/info/" target="_blank" rel="noopener"><span class="icon">🚋</span><span><span class="name">広電</span><span class="desc">電車・バス</span></span><span class="arrow">›</span></a>
+    </div>
+
+    <section id="road">
+      <div class="section-head"><h2>道路・規制</h2><span class="hint">最優先</span></div>
+      <div class="grid">
+        <a class="link" href="https://www.jartic.or.jp/map/?p=R34" target="_blank" rel="noopener"><span class="icon">🚦</span><span><span class="name">JARTIC 広島</span><span class="desc">事故・渋滞・道路交通情報</span></span><span class="arrow">›</span></a>
+        <a class="link" href="https://www.roadnavi.pref.hiroshima.lg.jp/" target="_blank" rel="noopener"><span class="icon">🛣️</span><span><span class="name">ひろしま道路ナビ</span><span class="desc">県内の規制・通行止め・冬用タイヤ規制</span></span><span class="arrow">›</span></a>
+        <a class="link" href="https://www.roadnavi.pref.hiroshima.lg.jp/camera_list.php" target="_blank" rel="noopener"><span class="icon">📷</span><span><span class="name">広島県道路カメラ</span><span class="desc">山間部・郊外方面の路面確認</span></span><span class="arrow">›</span></a>
+        <a class="link" href="https://www.h-exp.or.jp/" target="_blank" rel="noopener"><span class="icon">🏙️</span><span><span class="name">広島高速道路公社</span><span class="desc">広島高速の交通情報・料金・通行止め</span></span><span class="arrow">›</span></a>
+        <a class="link" href="https://www.city.hiroshima.lg.jp/living/doro-kotsu-kasen/1021384/1026405/1026406/1018843.html" target="_blank" rel="noopener"><span class="icon">🚧</span><span><span class="name">広島市 通行規制情報</span><span class="desc">長期工事・市内主要道路の規制</span></span><span class="arrow">›</span></a>
+        <a class="link" href="https://www.pref.hiroshima.lg.jp/site/police/" target="_blank" rel="noopener"><span class="icon">👮</span><span><span class="name">広島県警察</span><span class="desc">交通規制・取締り・イベント時規制</span></span><span class="arrow">›</span></a>
+      </div>
+      <div class="checkrow">
+        <button class="check" data-check="road-main">道路確認済み</button>
+        <button class="check" data-check="road-camera">カメラ確認済み</button>
+      </div>
+    </section>
+
+    <section id="railbus">
+      <div class="section-head"><h2>鉄道・バス</h2><span class="hint">需要変化</span></div>
+      <div class="grid">
+        <a class="link" href="https://trafficinfo.westjr.co.jp/chugoku.html" target="_blank" rel="noopener"><span class="icon">🚃</span><span><span class="name">JR西日本 中国エリア</span><span class="desc">広島・山口地区などの列車運行情報</span></span><span class="arrow">›</span></a>
+        <a class="link" href="https://www.hiroden.co.jp/traffic/info/" target="_blank" rel="noopener"><span class="icon">🚋</span><span><span class="name">広島電鉄 運行情報</span><span class="desc">電車・バスの運休・大幅遅れ</span></span><span class="arrow">›</span></a>
+        <a class="link" href="https://www.hiroden.co.jp/bus/" target="_blank" rel="noopener"><span class="icon">🚌</span><span><span class="name">広電バス情報</span><span class="desc">バス停・時刻表・遅延証明など</span></span><span class="arrow">›</span></a>
+        <a class="link" href="https://hirobus-info-rosen.jp/" target="_blank" rel="noopener"><span class="icon">🚌</span><span><span class="name">広島バス 路線バス運行情報</span><span class="desc">天災・通行止め等による運行情報</span></span><span class="arrow">›</span></a>
+        <a class="link" href="https://www.h-buscenter.com/smp/operation_info/" target="_blank" rel="noopener"><span class="icon">🚍</span><span><span class="name">広島バスセンター 出発便運行情報</span><span class="desc">高速バス・空港リムジン等の運休確認</span></span><span class="arrow">›</span></a>
+        <a class="link" href="https://www.h-buscenter.com/" target="_blank" rel="noopener"><span class="icon">🏢</span><span><span class="name">広島バスセンター</span><span class="desc">バス案内・お知らせ全般</span></span><span class="arrow">›</span></a>
+      </div>
+      <div class="checkrow">
+        <button class="check" data-check="rail">鉄道確認済み</button>
+        <button class="check" data-check="bus">バス確認済み</button>
+      </div>
+    </section>
+
+    <section id="airport">
+      <div class="section-head"><h2>空港</h2><span class="hint">空港送迎</span></div>
+      <div class="grid">
+        <a class="link" href="https://www.hij.airport.jp/flight/flight_dd.html" target="_blank" rel="noopener"><span class="icon">🛫</span><span><span class="name">広島空港 国内線 出発</span><span class="desc">本日の出発便・遅延・欠航</span></span><span class="arrow">›</span></a>
+        <a class="link" href="https://www.hij.airport.jp/flight/flight_da.html" target="_blank" rel="noopener"><span class="icon">🛬</span><span><span class="name">広島空港 国内線 到着</span><span class="desc">本日の到着便・遅延・欠航</span></span><span class="arrow">›</span></a>
+        <a class="link" href="https://www.hij.airport.jp/flight/flight_id.html" target="_blank" rel="noopener"><span class="icon">🌏</span><span><span class="name">広島空港 国際線 出発</span><span class="desc">国際線の出発便確認</span></span><span class="arrow">›</span></a>
+        <a class="link" href="https://www.hij.airport.jp/flight/flight_ia.html" target="_blank" rel="noopener"><span class="icon">🌏</span><span><span class="name">広島空港 国際線 到着</span><span class="desc">国際線の到着便確認</span></span><span class="arrow">›</span></a>
+        <a class="link" href="https://www.hij.airport.jp/access/" target="_blank" rel="noopener"><span class="icon">🚕</span><span><span class="name">広島空港 交通アクセス</span><span class="desc">空港連絡バス・車・駐車場</span></span><span class="arrow">›</span></a>
+      </div>
+      <div class="checkrow">
+        <button class="check" data-check="airport-dep">出発確認済み</button>
+        <button class="check" data-check="airport-arr">到着確認済み</button>
+      </div>
+    </section>
+
+    <section id="events">
+      <div class="section-head"><h2>イベント・需要予測</h2><span class="hint">人の流れ</span></div>
+      <div class="grid">
+        <a class="link" href="https://www.ticket.carp.co.jp/calendar/" target="_blank" rel="noopener"><span class="icon">⚾</span><span><span class="name">広島東洋カープ 日程</span><span class="desc">マツダスタジアム周辺の混雑・需要確認</span></span><span class="arrow">›</span></a>
+        <a class="link" href="https://www.sanfrecce.co.jp/matches/results" target="_blank" rel="noopener"><span class="icon">⚽</span><span><span class="name">サンフレッチェ 試合日程/結果</span><span class="desc">Eピース周辺・紙屋町方面の人流確認</span></span><span class="arrow">›</span></a>
+        <a class="link" href="https://hiroshima-stadiumpark.jp/peacewing/schedule/" target="_blank" rel="noopener"><span class="icon">🏟️</span><span><span class="name">エディオンピースウイング イベント</span><span class="desc">試合以外のスタジアムイベント</span></span><span class="arrow">›</span></a>
+        <a class="link" href="https://h-bkk.jp/hall/calendar/" target="_blank" rel="noopener"><span class="icon">🎤</span><span><span class="name">HBGホール 月間スケジュール</span><span class="desc">加古町・平和大通り周辺</span></span><span class="arrow">›</span></a>
+        <a class="link" href="https://www.rcchall.jp/hall/entertainments/" target="_blank" rel="noopener"><span class="icon">🎼</span><span><span class="name">上野学園ホール 公演スケジュール</span><span class="desc">白島・牛田・広島城周辺</span></span><span class="arrow">›</span></a>
+        <a class="link" href="https://www.pcf.city.hiroshima.jp/icch/event.cgi" target="_blank" rel="noopener"><span class="icon">🏛️</span><span><span class="name">広島国際会議場 イベント</span><span class="desc">平和公園・紙屋町周辺</span></span><span class="arrow">›</span></a>
+        <a class="link" href="https://dive-hiroshima.com/" target="_blank" rel="noopener"><span class="icon">⛩️</span><span><span class="name">Dive! Hiroshima</span><span class="desc">観光・季節イベント・お客様との会話ネタ</span></span><span class="arrow">›</span></a>
+      </div>
+      <div class="checkrow">
+        <button class="check" data-check="sports">スポーツ確認済み</button>
+        <button class="check" data-check="event">イベント確認済み</button>
+      </div>
+    </section>
+
+    <section id="company">
+      <div class="section-head"><h2>業務・会社・配車</h2><span class="hint">基本リンク</span></div>
+      <div class="grid">
+        <a class="link" href="https://www.tsubame.co.jp/" target="_blank" rel="noopener"><span class="icon">🚕</span><span><span class="name">ツバメ交通</span><span class="desc">自社公式サイト</span></span><span class="arrow">›</span></a>
+        <a class="link" href="https://www.taxi-hiroshima.com/" target="_blank" rel="noopener"><span class="icon">🚖</span><span><span class="name">広島県タクシー協会</span><span class="desc">協会情報・制度確認</span></span><span class="arrow">›</span></a>
+        <a class="link" href="https://go.goinc.jp/area" target="_blank" rel="noopener"><span class="icon">📱</span><span><span class="name">GO 対応エリア</span><span class="desc">配車アプリ対応エリア確認</span></span><span class="arrow">›</span></a>
+        <a class="link" href="https://www.uber.com/jp/ja/r/cities/taxi/hiroshima-hiroshima-jp/" target="_blank" rel="noopener"><span class="icon">📲</span><span><span class="name">Uber Taxi 広島</span><span class="desc">お客様説明用の公式情報</span></span><span class="arrow">›</span></a>
+      </div>
+      <div class="checkrow">
+        <button class="check" data-check="company">会社系確認済み</button>
+        <button class="check" data-check="apps">アプリ系確認済み</button>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head"><h2>今日のメモ</h2><span class="hint">端末内保存</span></div>
+      <div style="padding:12px">
+        <textarea id="memo" placeholder="例：広島駅周辺混雑／マツダスタジアム18:00開始／空港到着便遅れあり など"></textarea>
+      </div>
+    </section>
+
+    <div class="footer">
+      個人用ダッシュボードです。道路・運行・フライト等の最終確認は必ず各公式サイトで行ってください。第1版：リンク集＋チェック保存。
+    </div>
+  </div>
+
+  <nav class="bottom-nav" aria-label="主要メニュー">
+    <a href="#road">道路</a>
+    <a href="#railbus">鉄道</a>
+    <a href="#airport">空港</a>
+    <a href="#events">イベント</a>
+  </nav>
+
+  <script>
+    const pad = n => String(n).padStart(2, "0");
+    const now = new Date();
+    const weekdays = ["日","月","火","水","木","金","土"];
+    const todayKey = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+    document.getElementById("today").textContent =
+      `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${weekdays[now.getDay()]}）`;
+
+    const storagePrefix = `hiroshimaTaxiDash:${todayKey}:`;
+    const memoKey = `hiroshimaTaxiDash:memo:${todayKey}`;
+
+    document.querySelectorAll("[data-check]").forEach(btn => {
+      const key = storagePrefix + btn.dataset.check;
+      if (localStorage.getItem(key) === "1") {
+        btn.classList.add("done");
+        btn.textContent = "✓ " + btn.textContent.replace(/^✓\s*/, "");
+      }
+      btn.addEventListener("click", () => {
+        const done = btn.classList.toggle("done");
+        localStorage.setItem(key, done ? "1" : "0");
+        btn.textContent = (done ? "✓ " : "") + btn.textContent.replace(/^✓\s*/, "");
+      });
+    });
+
+    const memo = document.getElementById("memo");
+    memo.value = localStorage.getItem(memoKey) || "";
+    memo.addEventListener("input", () => localStorage.setItem(memoKey, memo.value));
+
+    document.getElementById("resetChecks").addEventListener("click", () => {
+      if (!confirm("今日のチェック状態をリセットしますか？メモは残ります。")) return;
+      document.querySelectorAll("[data-check]").forEach(btn => {
+        localStorage.removeItem(storagePrefix + btn.dataset.check);
+        btn.classList.remove("done");
+        btn.textContent = btn.textContent.replace(/^✓\s*/, "");
+      });
+    });
+
+    document.getElementById("copyMemo").addEventListener("click", async () => {
+      const text = memo.value.trim();
+      if (!text) {
+        alert("メモ欄が空です。");
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        alert("メモをコピーしました。");
+      } catch (e) {
+        alert("コピーできませんでした。メモを長押しして選択コピーしてください。");
+      }
+    });
+  </script>
+</body>
+</html>
