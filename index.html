@@ -49,52 +49,53 @@
     .wrap {
       width: min(900px, 100%);
       margin: 0 auto;
-      padding: 18px 14px 98px;
+      padding: 12px 14px 98px;
     }
 
     header {
-      padding: 18px 0 14px;
+      padding: 10px 0 9px;
       position: sticky;
       top: 0;
       z-index: 10;
-      background: linear-gradient(to bottom, rgba(11,18,32,.98), rgba(11,18,32,.92), rgba(11,18,32,.72));
+      background: linear-gradient(to bottom, rgba(11,18,32,.98), rgba(11,18,32,.94), rgba(11,18,32,.78));
       backdrop-filter: blur(14px);
       border-bottom: 1px solid rgba(255,255,255,.06);
     }
 
     .title {
       display: flex;
-      gap: 14px;
+      gap: 10px;
       align-items: center;
-      margin-bottom: 12px;
+      margin-bottom: 0;
     }
 
     .badge {
       flex: 0 0 auto;
-      width: 58px;
-      height: 58px;
+      width: 40px;
+      height: 40px;
       display: grid;
       place-items: center;
-      border-radius: 18px;
+      border-radius: 13px;
       background: linear-gradient(135deg, #f59e0b, #ef4444);
-      box-shadow: var(--shadow);
-      font-size: 32px;
+      box-shadow: 0 8px 18px rgba(0,0,0,.28);
+      font-size: 22px;
     }
 
     h1 {
       margin: 0;
-      font-size: clamp(25px, 8vw, 36px);
-      letter-spacing: .03em;
-      line-height: 1.22;
+      font-size: clamp(17px, 4.7vw, 24px);
+      letter-spacing: .02em;
+      line-height: 1.18;
       font-weight: 850;
       color: var(--text);
+      white-space: nowrap;
     }
 
     .date {
       color: var(--text-soft);
-      font-size: 16px;
-      margin-top: 4px;
-      font-weight: 600;
+      font-size: 13px;
+      margin-top: 2px;
+      font-weight: 650;
     }
 
     .toolbar {
@@ -120,7 +121,7 @@
     button:active, .link:active { transform: scale(.985); }
 
     .notice {
-      margin: 16px 0;
+      margin: 12px 0 16px;
       padding: 15px 16px;
       border: 1px solid rgba(245,158,11,.70);
       border-radius: var(--radius);
@@ -361,7 +362,7 @@
       <div class="title">
         <div class="badge">🚕</div>
         <div>
-          <h1>広島タクシー<br>乗務前チェック</h1>
+          <h1>広島タクシー乗務前チェック</h1>
           <div class="date" id="today">今日の日付を読み込み中...</div>
         </div>
       </div>
@@ -478,7 +479,7 @@
     </div>
 
     <div class="footer">
-      個人用ダッシュボードです。道路・運行・フライト等の最終確認は必ず各公式サイトで行ってください。第3版：同じタブで開く・操作ボタン下部移動版。
+      個人用ダッシュボードです。道路・運行・フライト等の最終確認は必ず各公式サイトで行ってください。第4版：コンパクトヘッダー版。
     </div>
   </div>
 
