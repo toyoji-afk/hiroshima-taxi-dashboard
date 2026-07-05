@@ -1,0 +1,32 @@
+name: Update taxi dashboard status
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 20,22,0,2,4,6,8,10,12 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  update-status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Update status
+        run: node auto/scripts/update-status.js
+
+      - name: Commit status
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add auto/data/status.json
+          git commit -m "Update dashboard status" || echo "No changes"
+          git push
