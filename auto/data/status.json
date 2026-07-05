@@ -1,13 +1,55 @@
 {
-  "updatedAt": "未実行",
-  "updatedAtJst": "GitHub Actions未実行",
+  "updatedAt": "2026-07-05T23:48:27.940Z",
+  "updatedAtJst": "2026/07/06(月) 08:48",
   "scheduleNote": "JST 00:00 / 06:00 / 12:00 / 18:00 目安で更新",
   "items": [
     {
-      "label": "自動巡回",
-      "url": "./",
-      "level": "error",
-      "message": "GitHub Actions設定後に巡回結果が表示されます。"
+      "label": "広島市周辺天気",
+      "url": "https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=340000",
+      "level": "alert",
+      "message": "雨　昼過ぎ　から　くもり　所により　朝　まで　雷を伴い　激しく　降る → くもり　所により　昼前　から　夜のはじめ頃　雨　で　雷を伴う／降水確率 80% → 30% → 20%"
+    },
+    {
+      "label": "JARTIC 広島",
+      "url": "https://www.jartic.or.jp/map/?p=R34",
+      "level": "alert",
+      "message": "要確認キーワードあり：通行止、渋滞、事故、規制"
+    },
+    {
+      "label": "ひろしま道路ナビ",
+      "url": "https://www.roadnavi.pref.hiroshima.lg.jp/",
+      "level": "alert",
+      "message": "要確認キーワードあり：通行止、規制、片側交互、冬用タイヤ"
+    },
+    {
+      "label": "JR西日本 中国エリア",
+      "url": "https://trafficinfo.westjr.co.jp/chugoku.html",
+      "level": "alert",
+      "message": "要確認キーワードあり：遅延"
+    },
+    {
+      "label": "広島電鉄",
+      "url": "https://www.hiroden.co.jp/traffic/info/",
+      "level": "alert",
+      "message": "要確認キーワードあり：遅れ、遅延"
+    },
+    {
+      "label": "広島空港",
+      "url": "https://www.hij.airport.jp/flight/flight_da.html",
+      "level": "ok",
+      "message": "取得OK。目立つ要確認語なし"
+    },
+    {
+      "label": "カープ本拠地開催",
+      "url": "https://www.ticket.carp.co.jp/calendar/",
+      "level": "ok",
+      "message": "本日の広島市内開催は検出なし"
+    },
+    {
+      "label": "サンフレッチェ広島開催",
+      "url": "https://www.sanfrecce.co.jp/matches/results",
+      "level": "ok",
+      "message": "本日の広島市内開催は検出なし"
     }
   ]
 }
