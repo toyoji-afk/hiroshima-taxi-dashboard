@@ -3,224 +3,296 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#111827">
+  <meta name="theme-color" content="#0b1220">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="乗務前チェック">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>広島タクシー乗務前チェック</title>
   <style>
     :root {
-      --bg: #0f172a;
-      --card: #172033;
-      --card2: #1f2937;
-      --text: #f8fafc;
-      --muted: #cbd5e1;
-      --line: rgba(255,255,255,.12);
+      --bg: #0b1220;
+      --panel: #121c2f;
+      --panel2: #18243a;
+      --card: #1e2d49;
+      --card-light: #243554;
+      --text: #ffffff;
+      --text-soft: #e5eefc;
+      --muted: #b8c7df;
+      --line: rgba(255,255,255,.16);
       --accent: #f59e0b;
-      --accent2: #38bdf8;
+      --accent-blue: #38bdf8;
       --ok: #22c55e;
-      --warn: #f97316;
-      --danger: #ef4444;
-      --shadow: 0 12px 28px rgba(0,0,0,.32);
+      --shadow: 0 12px 26px rgba(0,0,0,.35);
       --radius: 18px;
     }
+
     * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--bg);
+    }
+
     body {
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Yu Gothic", Meiryo, sans-serif;
-      background: radial-gradient(circle at top, #1f2937 0%, var(--bg) 45%, #030712 100%);
+      background:
+        radial-gradient(circle at top, #22314d 0%, #0b1220 48%, #050812 100%);
       color: var(--text);
-      line-height: 1.55;
+      line-height: 1.6;
       -webkit-font-smoothing: antialiased;
+      text-size-adjust: 100%;
     }
+
     a { color: inherit; text-decoration: none; }
+
     .wrap {
-      width: min(980px, 100%);
+      width: min(900px, 100%);
       margin: 0 auto;
-      padding: 18px 14px 88px;
+      padding: 18px 14px 98px;
     }
+
     header {
-      padding: 18px 2px 12px;
+      padding: 18px 0 14px;
       position: sticky;
       top: 0;
       z-index: 10;
+      background: linear-gradient(to bottom, rgba(11,18,32,.98), rgba(11,18,32,.92), rgba(11,18,32,.72));
       backdrop-filter: blur(14px);
-      background: linear-gradient(to bottom, rgba(15,23,42,.96), rgba(15,23,42,.80), rgba(15,23,42,0));
+      border-bottom: 1px solid rgba(255,255,255,.06);
     }
+
     .title {
       display: flex;
-      gap: 12px;
+      gap: 14px;
       align-items: center;
-      margin-bottom: 8px;
+      margin-bottom: 12px;
     }
+
     .badge {
-      width: 44px;
-      height: 44px;
+      flex: 0 0 auto;
+      width: 58px;
+      height: 58px;
       display: grid;
       place-items: center;
-      border-radius: 14px;
-      background: linear-gradient(135deg, var(--accent), #ef4444);
+      border-radius: 18px;
+      background: linear-gradient(135deg, #f59e0b, #ef4444);
       box-shadow: var(--shadow);
-      font-size: 24px;
+      font-size: 32px;
     }
+
     h1 {
       margin: 0;
-      font-size: clamp(22px, 6vw, 34px);
-      letter-spacing: .02em;
-      line-height: 1.15;
+      font-size: clamp(25px, 8vw, 36px);
+      letter-spacing: .03em;
+      line-height: 1.22;
+      font-weight: 850;
+      color: var(--text);
     }
+
     .date {
-      color: var(--muted);
-      font-size: 14px;
-      margin-top: 2px;
+      color: var(--text-soft);
+      font-size: 16px;
+      margin-top: 4px;
+      font-weight: 600;
     }
+
     .toolbar {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr;
       gap: 10px;
       margin-top: 12px;
     }
-    button, .mini {
+
+    button {
+      appearance: none;
       border: 1px solid var(--line);
       color: var(--text);
-      background: rgba(255,255,255,.08);
-      border-radius: 14px;
-      padding: 11px 12px;
-      font-size: 15px;
+      background: #263756;
+      border-radius: 16px;
+      padding: 14px 13px;
+      font-size: 16px;
+      font-weight: 700;
       cursor: pointer;
+      box-shadow: 0 2px 0 rgba(255,255,255,.04) inset;
     }
+
     button:active, .link:active { transform: scale(.985); }
+
     .notice {
-      margin: 14px 0;
-      padding: 13px 14px;
-      border: 1px solid rgba(245,158,11,.45);
+      margin: 16px 0;
+      padding: 15px 16px;
+      border: 1px solid rgba(245,158,11,.70);
       border-radius: var(--radius);
-      background: rgba(245,158,11,.10);
-      color: #fffbeb;
-      font-size: 14px;
+      background: rgba(245,158,11,.14);
+      color: #fff7ed;
+      font-size: 15px;
+      font-weight: 600;
     }
+
+    .notice strong {
+      color: #fde68a;
+    }
+
     .quick {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0,1fr));
-      gap: 10px;
-      margin: 14px 0 18px;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin: 16px 0 20px;
     }
-    .quick .link {
-      min-height: 66px;
-      font-weight: 700;
-      background: linear-gradient(135deg, rgba(245,158,11,.20), rgba(56,189,248,.10));
-      border-color: rgba(255,255,255,.18);
-    }
+
     section {
-      margin: 18px 0;
+      margin: 20px 0;
       border: 1px solid var(--line);
-      background: rgba(23,32,51,.88);
+      background: var(--panel);
       border-radius: var(--radius);
       overflow: hidden;
       box-shadow: var(--shadow);
     }
+
     .section-head {
-      padding: 16px 15px 12px;
+      padding: 16px 16px 13px;
       border-bottom: 1px solid var(--line);
       display: flex;
       justify-content: space-between;
       gap: 12px;
-      align-items: center;
-      background: rgba(255,255,255,.04);
+      align-items: baseline;
+      background: #18243a;
     }
+
     h2 {
       margin: 0;
-      font-size: 19px;
+      font-size: 21px;
+      color: var(--text);
+      font-weight: 850;
     }
+
     .hint {
-      color: var(--muted);
-      font-size: 12px;
+      color: #dbeafe;
+      font-size: 13px;
+      font-weight: 700;
       white-space: nowrap;
+      opacity: .9;
     }
+
     .grid {
       display: grid;
       grid-template-columns: 1fr;
-      gap: 10px;
-      padding: 12px;
+      gap: 12px;
+      padding: 14px;
     }
+
     .link {
       display: grid;
-      grid-template-columns: 44px 1fr auto;
+      grid-template-columns: 54px 1fr 18px;
       align-items: center;
-      gap: 12px;
-      padding: 13px;
-      min-height: 70px;
-      border-radius: 16px;
-      background: rgba(255,255,255,.055);
-      border: 1px solid rgba(255,255,255,.10);
+      gap: 14px;
+      padding: 15px 14px;
+      min-height: 82px;
+      border-radius: 17px;
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,.16);
+      box-shadow: 0 1px 0 rgba(255,255,255,.04) inset;
       transition: transform .08s ease, background .12s ease;
     }
-    .link:hover { background: rgba(255,255,255,.09); }
+
+    .quick .link {
+      background: linear-gradient(135deg, #2d3f60, #1d3950);
+      border-color: rgba(255,255,255,.20);
+    }
+
+    .link:hover { background: var(--card-light); }
+
     .icon {
-      width: 44px;
-      height: 44px;
+      width: 54px;
+      height: 54px;
       display: grid;
       place-items: center;
-      border-radius: 14px;
-      background: rgba(255,255,255,.09);
-      font-size: 23px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.12);
+      font-size: 28px;
     }
+
     .name {
-      font-weight: 720;
-      font-size: 16px;
+      display: block;
+      color: var(--text);
+      font-weight: 850;
+      font-size: 18px;
+      line-height: 1.35;
+      letter-spacing: .01em;
     }
+
     .desc {
+      display: block;
       color: var(--muted);
-      font-size: 12.5px;
-      margin-top: 2px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-top: 4px;
+      line-height: 1.45;
     }
+
     .arrow {
-      color: rgba(255,255,255,.55);
-      font-size: 22px;
+      color: rgba(255,255,255,.72);
+      font-size: 28px;
+      line-height: 1;
+      text-align: right;
     }
+
     .checkrow {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr;
       gap: 10px;
-      padding: 12px;
+      padding: 14px;
       border-top: 1px solid var(--line);
-      background: rgba(0,0,0,.10);
+      background: rgba(0,0,0,.14);
     }
+
     .check {
+      min-height: 52px;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
-      font-weight: 700;
+      font-weight: 800;
     }
+
     .check.done {
-      background: rgba(34,197,94,.18);
-      border-color: rgba(34,197,94,.50);
+      background: rgba(34,197,94,.24);
+      border-color: rgba(34,197,94,.70);
+      color: #dcfce7;
     }
+
     textarea {
       width: 100%;
-      min-height: 110px;
+      min-height: 130px;
       color: var(--text);
-      background: rgba(255,255,255,.06);
+      background: #0f1a2d;
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      padding: 14px;
+      padding: 15px;
       font: inherit;
+      font-size: 16px;
       resize: vertical;
       outline: none;
     }
+
+    textarea::placeholder {
+      color: #8ea3c2;
+    }
+
     .footer {
       color: var(--muted);
-      font-size: 12px;
-      padding: 10px 4px;
+      font-size: 13px;
+      padding: 12px 4px;
     }
+
     .bottom-nav {
       position: fixed;
       left: 0;
       right: 0;
       bottom: 0;
-      padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
-      background: rgba(3,7,18,.88);
+      padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+      background: rgba(5,8,18,.96);
       backdrop-filter: blur(16px);
       border-top: 1px solid var(--line);
       display: grid;
@@ -228,34 +300,25 @@
       gap: 8px;
       z-index: 20;
     }
+
     .bottom-nav a {
       text-align: center;
-      padding: 9px 5px;
-      border-radius: 13px;
-      background: rgba(255,255,255,.07);
-      color: var(--text);
-      font-size: 12px;
-      font-weight: 700;
+      padding: 11px 5px;
+      border-radius: 14px;
+      background: #1f2f4c;
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 850;
+      border: 1px solid rgba(255,255,255,.12);
     }
-    @media (min-width: 720px) {
-      .grid { grid-template-columns: 1fr 1fr; }
-      .quick { grid-template-columns: repeat(4, 1fr); }
-      .toolbar { grid-template-columns: 200px 200px; }
+
+    @media (min-width: 680px) {
+      .toolbar { grid-template-columns: 220px 220px; }
+      .quick { grid-template-columns: repeat(2, 1fr); }
+      .grid { grid-template-columns: repeat(2, 1fr); }
+      .checkrow { grid-template-columns: repeat(2, 1fr); }
       .bottom-nav { display: none; }
-      .wrap { padding-bottom: 40px; }
-    }
-    @media (prefers-color-scheme: light) {
-      :root {
-        --bg: #f1f5f9;
-        --card: #ffffff;
-        --card2: #e2e8f0;
-        --text: #0f172a;
-        --muted: #475569;
-        --line: rgba(15,23,42,.12);
-      }
-      body { background: linear-gradient(#e2e8f0, #f8fafc); }
-      header { background: linear-gradient(to bottom, rgba(241,245,249,.96), rgba(241,245,249,.80), rgba(241,245,249,0)); }
-      .bottom-nav { background: rgba(248,250,252,.90); }
+      .wrap { padding-bottom: 44px; }
     }
   </style>
 </head>
@@ -280,10 +343,18 @@
     </div>
 
     <div class="quick">
-      <a class="link" href="https://www.jartic.or.jp/map/?p=R34" target="_blank" rel="noopener"><span class="icon">🚦</span><span><span class="name">JARTIC</span><span class="desc">事故・渋滞</span></span><span class="arrow">›</span></a>
-      <a class="link" href="https://www.roadnavi.pref.hiroshima.lg.jp/" target="_blank" rel="noopener"><span class="icon">🛣️</span><span><span class="name">道路ナビ</span><span class="desc">規制・道路カメラ</span></span><span class="arrow">›</span></a>
-      <a class="link" href="https://trafficinfo.westjr.co.jp/chugoku.html" target="_blank" rel="noopener"><span class="icon">🚃</span><span><span class="name">JR中国</span><span class="desc">運行情報</span></span><span class="arrow">›</span></a>
-      <a class="link" href="https://www.hiroden.co.jp/traffic/info/" target="_blank" rel="noopener"><span class="icon">🚋</span><span><span class="name">広電</span><span class="desc">電車・バス</span></span><span class="arrow">›</span></a>
+      <a class="link" href="https://www.jartic.or.jp/map/?p=R34" target="_blank" rel="noopener">
+        <span class="icon">🚦</span><span><span class="name">JARTIC 広島</span><span class="desc">事故・渋滞・道路交通情報</span></span><span class="arrow">›</span>
+      </a>
+      <a class="link" href="https://www.roadnavi.pref.hiroshima.lg.jp/" target="_blank" rel="noopener">
+        <span class="icon">🛣️</span><span><span class="name">ひろしま道路ナビ</span><span class="desc">規制・道路カメラ</span></span><span class="arrow">›</span>
+      </a>
+      <a class="link" href="https://trafficinfo.westjr.co.jp/chugoku.html" target="_blank" rel="noopener">
+        <span class="icon">🚃</span><span><span class="name">JR中国エリア</span><span class="desc">列車運行情報</span></span><span class="arrow">›</span>
+      </a>
+      <a class="link" href="https://www.hiroden.co.jp/traffic/info/" target="_blank" rel="noopener">
+        <span class="icon">🚋</span><span><span class="name">広島電鉄</span><span class="desc">電車・バス運行情報</span></span><span class="arrow">›</span>
+      </a>
     </div>
 
     <section id="road">
@@ -366,13 +437,13 @@
 
     <section>
       <div class="section-head"><h2>今日のメモ</h2><span class="hint">端末内保存</span></div>
-      <div style="padding:12px">
+      <div style="padding:14px">
         <textarea id="memo" placeholder="例：広島駅周辺混雑／マツダスタジアム18:00開始／空港到着便遅れあり など"></textarea>
       </div>
     </section>
 
     <div class="footer">
-      個人用ダッシュボードです。道路・運行・フライト等の最終確認は必ず各公式サイトで行ってください。第1版：リンク集＋チェック保存。
+      個人用ダッシュボードです。道路・運行・フライト等の最終確認は必ず各公式サイトで行ってください。第2版：iPhone高コントラスト版。
     </div>
   </div>
 
