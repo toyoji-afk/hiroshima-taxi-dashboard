@@ -1,48 +1,13 @@
 {
-  "updatedAt": "2026-07-05T22:54:19.312Z",
-  "updatedAtJst": "2026/07/06(月) 07:54",
+  "updatedAt": "未実行",
+  "updatedAtJst": "GitHub Actions未実行",
+  "scheduleNote": "JST 00:00 / 06:00 / 12:00 / 18:00 目安で更新",
   "items": [
     {
-      "label": "JARTIC 広島",
-      "url": "https://www.jartic.or.jp/map/?p=R34",
-      "level": "alert",
-      "message": "要確認キーワードあり：通行止、渋滞、事故、規制"
-    },
-    {
-      "label": "ひろしま道路ナビ",
-      "url": "https://www.roadnavi.pref.hiroshima.lg.jp/",
-      "level": "alert",
-      "message": "要確認キーワードあり：通行止、規制、片側交互、冬用タイヤ"
-    },
-    {
-      "label": "JR西日本 中国エリア",
-      "url": "https://trafficinfo.westjr.co.jp/chugoku.html",
-      "level": "alert",
-      "message": "要確認キーワードあり：遅延"
-    },
-    {
-      "label": "広島電鉄",
-      "url": "https://www.hiroden.co.jp/traffic/info/",
-      "level": "alert",
-      "message": "要確認キーワードあり：遅れ、遅延、運行情報"
-    },
-    {
-      "label": "広島空港",
-      "url": "https://www.hij.airport.jp/flight/flight_da.html",
-      "level": "ok",
-      "message": "取得OK。目立つ要確認語なし"
-    },
-    {
-      "label": "カープ日程",
-      "url": "https://www.ticket.carp.co.jp/calendar/",
-      "level": "alert",
-      "message": "要確認キーワードあり：広島"
-    },
-    {
-      "label": "サンフレッチェ日程",
-      "url": "https://www.sanfrecce.co.jp/matches/results",
-      "level": "alert",
-      "message": "要確認キーワードあり：試合、エディオンピースウイング、広島、チケット"
+      "label": "自動巡回",
+      "url": "./",
+      "level": "error",
+      "message": "GitHub Actions設定後に巡回結果が表示されます。"
     }
   ]
 }
