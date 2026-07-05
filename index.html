@@ -135,11 +135,34 @@
       color: #fde68a;
     }
 
+
+    .top-section-title {
+      margin: 14px 2px 10px;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--text);
+    }
+
+    .top-section-title span {
+      font-size: 17px;
+      font-weight: 850;
+      letter-spacing: .03em;
+    }
+
+    .top-section-title small {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
     .quick {
       display: grid;
       grid-template-columns: 1fr;
       gap: 12px;
-      margin: 16px 0 20px;
+      margin: 8px 0 20px;
     }
 
     section {
@@ -343,7 +366,62 @@
       font-size: 13px;
       font-weight: 600;
       margin: 4px 2px 0;
-      line-height: 1.55;
+      line-height: 1.65;
+    }
+
+    .subnote strong {
+      color: #fde68a;
+    }
+
+
+    .share-box {
+      margin: 20px 0 8px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+
+    .share-box h2 {
+      margin-bottom: 6px;
+      font-size: 20px;
+    }
+
+    .share-box p {
+      margin: 6px 0 12px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.6;
+    }
+
+    .qr-wrap {
+      display: inline-block;
+      padding: 12px;
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 8px 18px rgba(0,0,0,.28);
+    }
+
+    .qr-wrap img {
+      display: block;
+      width: 190px;
+      height: 190px;
+    }
+
+    .share-url {
+      margin: 12px auto 0;
+      padding: 10px 11px;
+      max-width: 100%;
+      color: var(--text-soft);
+      background: #0f1a2d;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      font-size: 12px;
+      overflow-wrap: anywhere;
+      text-align: left;
     }
 
     @media (min-width: 680px) {
@@ -368,8 +446,9 @@
       </div>
     </header>
 
-    <div class="notice">
-      <strong>使い方：</strong>乗務前や休憩中に、上から順に確認。公式サイトで最終確認し、確認後は「チェック済み」を押すと、この端末に今日の状態が保存されます。
+    <div class="top-section-title">
+      <span>まず確認する4項目</span>
+      <small>道路・鉄道・市内交通</small>
     </div>
 
     <div class="quick">
@@ -469,17 +548,29 @@
     </section>
 
 
+
+    <div class="share-box">
+      <h2>共有用QRコード</h2>
+      <p>このページを同僚や先輩に見せるときは、下のQRコードを読み取ってもらってください。</p>
+      <div class="qr-wrap">
+        <img id="qrCode" alt="共有用QRコード">
+      </div>
+      <div class="share-url" id="shareUrl">URLを読み込み中...</div>
+    </div>
+
     <div class="footer-actions">
       <button id="resetChecks">今日のチェックをリセット</button>
       <button id="copyMemo">メモをコピー</button>
+      <button id="copyUrl">ページURLをコピー</button>
       <a class="toplink" href="#">ページ先頭へ戻る</a>
       <div class="subnote">
+        <strong>使い方：</strong>乗務前や休憩中に、上から順に確認。公式サイトで最終確認し、確認後は「チェック済み」を押すと、この端末に今日の状態が保存されます。<br>
         リンクは同じタブで開きます。確認後はブラウザの「戻る」でこの画面へ戻ってください。
       </div>
     </div>
 
     <div class="footer">
-      個人用ダッシュボードです。道路・運行・フライト等の最終確認は必ず各公式サイトで行ってください。第4版：コンパクトヘッダー版。
+      個人用ダッシュボードです。道路・運行・フライト等の最終確認は必ず各公式サイトで行ってください。第5版：上部整理・QR共有追加版。
     </div>
   </div>
 
@@ -518,6 +609,15 @@
     memo.value = localStorage.getItem(memoKey) || "";
     memo.addEventListener("input", () => localStorage.setItem(memoKey, memo.value));
 
+
+    const canonicalUrl = location.origin + location.pathname;
+    const shareUrl = document.getElementById("shareUrl");
+    const qrCode = document.getElementById("qrCode");
+    if (shareUrl && qrCode) {
+      shareUrl.textContent = canonicalUrl;
+      qrCode.src = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=" + encodeURIComponent(canonicalUrl);
+    }
+
     document.getElementById("resetChecks").addEventListener("click", () => {
       if (!confirm("今日のチェック状態をリセットしますか？メモは残ります。")) return;
       document.querySelectorAll("[data-check]").forEach(btn => {
@@ -525,6 +625,16 @@
         btn.classList.remove("done");
         btn.textContent = btn.textContent.replace(/^✓\s*/, "");
       });
+    });
+
+
+    document.getElementById("copyUrl").addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(canonicalUrl);
+        alert("ページURLをコピーしました。");
+      } catch (e) {
+        alert("コピーできませんでした。URL欄を長押しして選択コピーしてください。");
+      }
     });
 
     document.getElementById("copyMemo").addEventListener("click", async () => {
