@@ -279,6 +279,24 @@ async function fetchText(url, label, timeoutMs = 30000) {
   }
 }
 
+async function fetchTextWithRetry(url, label, timeoutMs = 30000, attempts = 2) {
+  let lastError = null;
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      const targetUrl = (typeof addCacheBuster === 'function') ? addCacheBuster(url) : url;
+      return await fetchText(targetUrl, `${label}${i > 1 ? `-retry${i}` : ''}`, timeoutMs);
+    } catch (e) {
+      lastError = e;
+      console.log(`[fetch] ${label}: attempt ${i}/${attempts} failed: ${e.message}`);
+      if (i < attempts) {
+        await new Promise(resolve => setTimeout(resolve, 1200 * i));
+      }
+    }
+  }
+  throw lastError || new Error('fetch failed');
+}
+
+
 function requireJrParser() {
   const candidates = [
     './jr-west-parser',
@@ -829,12 +847,21 @@ async function getHirodenStatus() {
 async function getHiroshimaBusStatus() {
   const name = '広島バス 路線バス';
   try {
-    const { text } = await fetchText(URLS.hiroshimaBus, 'hiroshima-bus');
+    // 広島バスの運行情報ページはGitHub Actions環境から一時的に fetch failed になることがあるため、
+    // キャッシュ回避URLで短いリトライを行う。
+    const { text } = await fetchTextWithRetry(URLS.hiroshimaBus, 'hiroshima-bus', 30000, 3);
     if (hasNoInfoText(text)) return normalItem(name, URLS.hiroshimaBus);
     if (detectTransitAbnormal(text)) return makeItem(name, excerptAbnormal(text), '要確認', URLS.hiroshimaBus);
     return makeItem(name, '公式運行情報ページを確認（大きな乱れ情報なし想定）', '確認', URLS.hiroshimaBus);
   } catch (e) {
-    return errorItem(name, e, URLS.hiroshimaBus);
+    // 取得失敗そのものはシステムエラーではなく「情報未確認」として扱う。
+    // NG表示にするとダッシュボード全体が壊れたように見えるため、タクシー実務上は要確認に落とす。
+    return makeItem(
+      name,
+      `一時的に公式運行情報ページへ接続できません。必要時は広島バス公式ページまたはくるけんを確認（${e.message || e}）`,
+      '要確認',
+      URLS.hiroshimaBus
+    );
   }
 }
 
