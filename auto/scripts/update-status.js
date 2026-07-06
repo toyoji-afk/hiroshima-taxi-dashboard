@@ -117,6 +117,69 @@ async function fetchText(url) {
 }
 
 
+
+function judgeHirodenPriorityRoutes(rawText) {
+  const text = rawText.replace(/\s+/g, " ").trim();
+
+  const routes = [
+    {
+      key: "5号線",
+      patterns: [/5号線/g, /牛田早稲田/g, /広島駅新幹線口/g]
+    },
+    {
+      key: "6号線",
+      patterns: [/6号線/g, /牛田早稲田/g, /八丁堀/g, /江波/g]
+    },
+    {
+      key: "2号線",
+      patterns: [/2号線/g, /府中永田/g, /府中山田/g, /府中ニュータウン/g, /温品/g]
+    }
+  ];
+
+  const seriousPattern = /(運休|運転見合わせ|見合わせ|運行見合わせ|欠便|大幅な遅れ|大幅遅延|遅延発生|遅れが発生|迂回運行|運行休止|運行停止)/;
+  const delayPattern = /(遅延|遅れ)/;
+  const stopPattern = /(運休|運転見合わせ|見合わせ|運行見合わせ|欠便|運行休止|運行停止)/;
+  const detourPattern = /(迂回|迂回運行)/;
+  const uncertainPattern = /(恐れ|おそれ|可能性|予定|工事|交通規制|規制に伴|事前案内|予告|見込み)/;
+
+  const results = [];
+
+  for (const route of routes) {
+    let status = "○";
+
+    for (const pattern of route.patterns) {
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        const idx = match.index;
+        const context = text.slice(Math.max(0, idx - 90), idx + 160);
+
+        if (seriousPattern.test(context) && !uncertainPattern.test(context)) {
+          if (stopPattern.test(context)) {
+            status = "運休等";
+          } else if (detourPattern.test(context)) {
+            status = "迂回";
+          } else if (delayPattern.test(context)) {
+            status = "遅延";
+          } else {
+            status = "要確認";
+          }
+          break;
+        }
+      }
+      if (status !== "○") break;
+    }
+
+    results.push(`${route.key}${status}`);
+  }
+
+  const hasAlert = results.some(v => !v.endsWith("○"));
+
+  return {
+    level: hasAlert ? "alert" : "ok",
+    message: results.join("／")
+  };
+}
+
 function stripNoticeLikeText(text) {
   return text
     .replace(/お知らせ[\s\S]*/g, "")
@@ -171,6 +234,21 @@ function judgeBusOperation(rawText) {
 async function checkSource(source) {
   try {
     const html = await fetchText(source.url);
+
+    if (source.id === "hiroden") {
+      const routeResult = judgeHirodenPriorityRoutes(html);
+      const baseResult = checkKeywords(html, source.keywords);
+      const baseMessage = baseResult.found.length
+        ? `要確認キーワードあり：${baseResult.found.join("、")}`
+        : "取得OK";
+
+      return {
+        label: source.label,
+        url: source.url,
+        level: routeResult.level === "alert" ? "alert" : baseResult.level,
+        message: `${routeResult.message}｜全体：${baseMessage}`
+      };
+    }
 
     if (source.mode === "bus-operation") {
       const result = judgeBusOperation(html);
