@@ -22,9 +22,13 @@ jobs:
         with:
           node-version: "24"
 
+      - name: Install Playwright
+        run: npm i playwright
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
       - name: Update status
-      - run: npm i playwright
-      - run: npx playwright install --with-deps chromium
         run: node auto/scripts/update-status.js
 
       - name: Commit status
