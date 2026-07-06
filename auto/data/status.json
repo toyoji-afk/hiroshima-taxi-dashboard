@@ -1,13 +1,13 @@
 {
-  "updatedAt": "2026-07-05T23:48:27.940Z",
-  "updatedAtJst": "2026/07/06(月) 08:48",
+  "updatedAt": "2026-07-06T00:11:03.062Z",
+  "updatedAtJst": "2026/07/06(月) 09:11",
   "scheduleNote": "JST 00:00 / 06:00 / 12:00 / 18:00 目安で更新",
   "items": [
     {
       "label": "広島市周辺天気",
       "url": "https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=340000",
       "level": "alert",
-      "message": "雨　昼過ぎ　から　くもり　所により　朝　まで　雷を伴い　激しく　降る → くもり　所により　昼前　から　夜のはじめ頃　雨　で　雷を伴う／降水確率 80% → 30% → 20%"
+      "message": "今日 雨　昼過ぎ　から　くもり　所により　朝　まで　雷を伴い　激しく　降る／降水確率 午前目安 80%、午後目安 20%／最高気温 29℃"
     },
     {
       "label": "JARTIC 広島",
