@@ -1,4 +1,4 @@
-// update-status.js v40 dashboard-compatible
+// update-status.js v41 JMA-weather-and-badge-fix
 // 広島市タクシーダッシュボード：本日の自動巡回メモ生成
 // Node.js 20+ / GitHub Actions
 //
@@ -16,7 +16,8 @@ const OUT_PATH = path.join(process.cwd(), 'auto/data/status.json');
 const DEBUG_DIR = path.join(process.cwd(), 'auto/data/debug');
 
 const URLS = {
-  weather: 'https://api.open-meteo.com/v1/forecast?latitude=34.3853&longitude=132.4553&current=temperature_2m,weather_code,precipitation,wind_speed_10m&hourly=precipitation_probability&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FTokyo&forecast_days=1',
+  weather: 'https://www.jma.go.jp/bosai/forecast/data/forecast/340000.json',
+  weatherOverview: 'https://www.jma.go.jp/bosai/forecast/data/overview_forecast/340000.json',
   hiroden: 'https://www.hiroden.co.jp/traffic/info/',
   hiroshimaBus: 'https://hirobus-info-rosen.jp/',
   hiroshimaKotsu: 'https://www.hiroko-group.co.jp/kotsu/rosen_unkou.htm',
@@ -28,7 +29,7 @@ const URLS = {
   sanfrecce: 'https://www.sanfrecce.co.jp/matches/results',
 };
 
-const USER_AGENT = 'Mozilla/5.0 GitHubActions HiroshimaTaxiDashboard/40.0';
+const USER_AGENT = 'Mozilla/5.0 GitHubActions HiroshimaTaxiDashboard/41.0';
 
 function nowIsoJst() {
   return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tokyo' }).replace(' ', 'T') + '+09:00';
@@ -103,28 +104,47 @@ function slugifyName(name) {
     .trim();
 }
 
-function badgeForStatus(status) {
-  const s = String(status || '');
-  if (/取得失敗|失敗|error|ERROR/i.test(s)) return 'NG';
-  if (/要確認|注意|遅延|運休|見合わせ|欠航|warning|WARN/i.test(s)) return '注意';
+function badgeForStatus(statusOrBody) {
+  const s = String(statusOrBody || '');
+  if (/取得失敗|失敗|error|ERROR|NG/i.test(s)) return 'NG';
+  if (/要確認|注意|警戒|遅延|運休|見合わせ|欠航|運転取り止め|ダイヤ乱れ|warning|WARN/i.test(s)) return '注意';
   return 'OK';
 }
 
-function levelForStatus(status) {
-  const s = String(status || '');
-  if (/取得失敗|失敗|error|ERROR/i.test(s)) return 'error';
-  if (/要確認|注意|遅延|運休|見合わせ|欠航|warning|WARN/i.test(s)) return 'warning';
+function levelForStatus(statusOrBody) {
+  const s = String(statusOrBody || '');
+  if (/取得失敗|失敗|error|ERROR|NG/i.test(s)) return 'error';
+  if (/要確認|注意|警戒|遅延|運休|見合わせ|欠航|運転取り止め|ダイヤ乱れ|warning|WARN/i.test(s)) return 'warning';
   return 'ok';
 }
 
+function statusCodeForLevel(level) {
+  if (level === 'error') return 'error';
+  if (level === 'warning') return 'warning';
+  return 'ok';
+}
+
+function statusLabelForLevel(level) {
+  if (level === 'error') return '取得失敗';
+  if (level === 'warning') return '要確認';
+  return '平常';
+}
+
+// auto/index.html 側の古い表示ロジックにも合うよう、同じ内容を複数フィールドに入れます。
 // auto/index.html 側の古い表示ロジックにも合うよう、同じ内容を複数フィールドに入れます。
 function makeItem(name, memoBody, status = '確認', source = '') {
   const checked = nowIsoJst();
   const title = String(name || '情報源');
   const body = String(memoBody || '確認してください');
   const memo = `${title}：${body}`;
-  const badge = badgeForStatus(status);
-  const level = levelForStatus(status);
+
+  // status だけでなく本文も見て、運休・遅延などは必ず warning 扱いにします。
+  const combined = `${status} ${title} ${body}`;
+  const level = levelForStatus(combined);
+  const badge = badgeForStatus(combined);
+  const statusCode = statusCodeForLevel(level);
+  const statusLabel = statusLabelForLevel(level);
+  const isOk = level === 'ok';
   const id = slugifyName(title);
 
   return {
@@ -136,11 +156,35 @@ function makeItem(name, memoBody, status = '確認', source = '') {
     display_name: title,
     displayName: title,
 
-    status,
-    state: status,
+    // 新旧いろいろな auto/index.html に合わせるため、コード値と日本語表示値の両方を持たせます。
+    status: statusCode,
+    state: statusCode,
+    status_code: statusCode,
+    statusCode,
+    status_label: statusLabel,
+    statusLabel,
+    original_status: status,
+    originalStatus: status,
+
     badge,
+    badge_text: badge,
+    badgeText: badge,
     level,
     severity: level,
+    type: level,
+    kind: level,
+    className: level,
+    statusClass: level,
+    priority: level,
+
+    ok: isOk,
+    is_ok: isOk,
+    isOk,
+    alert: !isOk,
+    has_alert: !isOk,
+    hasAlert: !isOk,
+    warning: level === 'warning',
+    error: level === 'error',
 
     memo,
     message: body,
@@ -243,39 +287,130 @@ function requireJrParser() {
 
 async function getWeatherStatus() {
   const name = '広島市周辺天気';
+  const source = 'https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=340000';
   try {
-    const res = await fetch(URLS.weather, { headers: { 'user-agent': USER_AGENT } });
+    const res = await fetch(URLS.weather, { headers: { 'user-agent': USER_AGENT, 'accept-language': 'ja,en-US;q=0.9' } });
     const json = await res.json();
-    const current = json.current || {};
-    const daily = json.daily || {};
-    const code = Number(current.weather_code ?? daily.weather_code?.[0]);
-    const desc = weatherCodeToJapanese(code);
-    const temp = num(current.temperature_2m);
-    const wind = num(current.wind_speed_10m);
-    const precip = num(current.precipitation);
-    const pop = daily.precipitation_probability_max?.[0];
-    const max = daily.temperature_2m_max?.[0];
-    const min = daily.temperature_2m_min?.[0];
+    writeDebug('jma-forecast.json', JSON.stringify(json, null, 2));
+
+    const first = Array.isArray(json) ? json[0] : json;
+    const ts = first?.timeSeries || [];
+    const today = todayJstParts();
+    const todayDate = `${today.year}-${today.month}-${today.day}`;
+
+    const weatherTs = ts[0] || {};
+    const weatherArea = pickArea(weatherTs.areas, ['南部', '広島県南部', '広島']);
+    const weatherIndex = pickTodayIndex(weatherTs.timeDefines, todayDate, 0);
+    const weather = cleanJmaText(weatherArea?.weathers?.[weatherIndex] || weatherArea?.weathers?.[0] || '天気予報を確認');
+
+    const popTs = ts.find(x => Array.isArray(x.areas) && x.areas.some(a => Array.isArray(a.pops))) || {};
+    const popArea = pickArea(popTs.areas, ['南部', '広島県南部', '広島']);
+    const popParts = buildPopParts(popTs.timeDefines || [], popArea?.pops || [], todayDate);
+
+    const tempTs = ts.find(x => Array.isArray(x.areas) && x.areas.some(a => Array.isArray(a.temps) || Array.isArray(a.tempsMax) || Array.isArray(a.tempsMin))) || {};
+    const tempArea = pickArea(tempTs.areas, ['広島', '南部', '広島県南部']);
+    const tempInfo = buildTempInfo(tempTs.timeDefines || [], tempArea || {}, todayDate);
 
     const caution = [];
-    if (Number(pop) >= 50) caution.push(`降水確率${pop}%`);
-    if (Number(precip) > 0) caution.push(`現在降水${precip}mm`);
-    if (Number(wind) >= 8) caution.push(`風${wind}m/s`);
+    if (/雨|雷|雪|荒れ|強い|激しい/.test(weather)) caution.push('天候注意');
+    const futurePops = popParts.map(p => Number(p.percent)).filter(n => !Number.isNaN(n));
+    const maxPop = futurePops.length ? Math.max(...futurePops) : null;
+    if (maxPop != null && maxPop >= 50) caution.push(`降水確率${maxPop}%`);
 
     const body = [
-      desc,
-      temp !== '' ? `現在${temp}℃` : '',
-      max != null && min != null ? `最高${num(max)}℃／最低${num(min)}℃` : '',
-      pop != null ? `降水確率${pop}%` : '',
-      wind !== '' ? `風${wind}m/s` : '',
+      weather,
+      tempInfo ? tempInfo : '',
+      popParts.length ? `降水確率 ${popParts.map(p => `${p.label}${p.percent}%`).join('／')}` : '',
       caution.length ? `注意：${caution.join('・')}` : '',
     ].filter(Boolean).join('　');
 
-    const status = caution.length ? '注意' : '確認';
-    return makeItem(name, body || '天気情報を確認', status, 'https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=340000');
+    const status = caution.length ? '要確認' : '平常';
+    return makeItem(name, body || '気象庁の天気予報を確認', status, source);
   } catch (e) {
-    return errorItem(name, e, 'https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=340000');
+    return errorItem(name, e, source);
   }
+}
+
+function pickArea(areas, preferredNames) {
+  if (!Array.isArray(areas) || !areas.length) return null;
+  for (const name of preferredNames) {
+    const found = areas.find(a => String(a?.area?.name || a?.name || '').includes(name));
+    if (found) return found;
+  }
+  return areas[0];
+}
+
+function pickTodayIndex(timeDefines, todayDate, fallback = 0) {
+  if (!Array.isArray(timeDefines)) return fallback;
+  const idx = timeDefines.findIndex(t => String(t || '').startsWith(todayDate));
+  return idx >= 0 ? idx : fallback;
+}
+
+function cleanJmaText(s) {
+  return String(s || '')
+    .replace(/　/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/所により/g, 'ところにより')
+    .trim();
+}
+
+function hourFromIso(t) {
+  const m = String(t || '').match(/T(\d{2}):/);
+  return m ? Number(m[1]) : null;
+}
+
+function buildPopParts(timeDefines, pops, todayDate) {
+  const out = [];
+  if (!Array.isArray(timeDefines) || !Array.isArray(pops)) return out;
+  const nowHour = Number(new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', hour12: false }).format(new Date()));
+
+  for (let i = 0; i < timeDefines.length; i++) {
+    const t = String(timeDefines[i] || '');
+    if (!t.startsWith(todayDate)) continue;
+    const start = hourFromIso(t);
+    const next = String(timeDefines[i + 1] || '');
+    const end = next.startsWith(todayDate) ? hourFromIso(next) : 24;
+    const percent = pops[i];
+    if (percent == null || percent === '') continue;
+
+    // 現在時刻を過ぎた時間帯でも、その時間帯の中なら残します。
+    if (end != null && end <= nowHour) continue;
+    if (start == null || end == null) continue;
+    out.push({ label: `${start}-${end}時`, percent: String(percent) });
+  }
+  return out;
+}
+
+function buildTempInfo(timeDefines, area, todayDate) {
+  const pieces = [];
+  const tempsMax = area.tempsMax || [];
+  const tempsMin = area.tempsMin || [];
+  const temps = area.temps || [];
+
+  const todayIndexes = Array.isArray(timeDefines)
+    ? timeDefines.map((t, i) => String(t || '').startsWith(todayDate) ? i : -1).filter(i => i >= 0)
+    : [];
+
+  const maxCandidates = [];
+  const minCandidates = [];
+
+  for (const i of todayIndexes) {
+    if (tempsMax[i] !== undefined && tempsMax[i] !== '') maxCandidates.push(Number(tempsMax[i]));
+    if (tempsMin[i] !== undefined && tempsMin[i] !== '') minCandidates.push(Number(tempsMin[i]));
+    if (temps[i] !== undefined && temps[i] !== '') {
+      const n = Number(temps[i]);
+      if (!Number.isNaN(n)) {
+        maxCandidates.push(n);
+        minCandidates.push(n);
+      }
+    }
+  }
+
+  const max = maxCandidates.filter(n => !Number.isNaN(n)).length ? Math.max(...maxCandidates.filter(n => !Number.isNaN(n))) : null;
+  const min = minCandidates.filter(n => !Number.isNaN(n)).length ? Math.min(...minCandidates.filter(n => !Number.isNaN(n))) : null;
+  if (max != null) pieces.push(`最高${max}℃`);
+  if (min != null && min !== max) pieces.push(`最低${min}℃`);
+  return pieces.join('／');
 }
 
 function num(v) {
@@ -367,7 +502,7 @@ async function getHiroshimaKotsuStatus() {
       .replace(/情報更新には細心の注意を払っております/g, '');
 
     if (detectTransitAbnormal(meaningful)) return makeItem(name, excerptAbnormal(meaningful), '要確認', URLS.hiroshimaKotsu);
-    return makeItem(name, '公式運行状況ページを確認（掲載障害なし想定）', '確認', URLS.hiroshimaKotsu);
+    return normalItem(name, URLS.hiroshimaKotsu);
   } catch (e) {
     return errorItem(name, e, URLS.hiroshimaKotsu);
   }
