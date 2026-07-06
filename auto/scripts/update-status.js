@@ -2,24 +2,6 @@ const fs = require("fs/promises");
 
 const sources = [
   {
-    id: "jartic",
-    label: "JARTIC 広島",
-    url: "https://www.jartic.or.jp/map/?p=R34",
-    keywords: ["通行止", "渋滞", "事故", "規制", "注意"]
-  },
-  {
-    id: "roadnavi",
-    label: "ひろしま道路ナビ",
-    url: "https://www.roadnavi.pref.hiroshima.lg.jp/",
-    keywords: ["通行止", "規制", "片側交互", "冬用タイヤ", "災害"]
-  },
-  {
-    id: "jr",
-    label: "JR西日本 中国エリア",
-    url: "https://trafficinfo.westjr.co.jp/chugoku.html",
-    keywords: ["遅延", "運転見合わせ", "運休", "列車に遅れ"]
-  },
-  {
     id: "hiroden",
     label: "広島電鉄",
     url: "https://www.hiroden.co.jp/traffic/info/",
@@ -152,6 +134,237 @@ async function fetchText(url) {
 
 
 
+
+
+
+const jrLocalLines = [
+  {
+    id: "jr-sanyo",
+    label: "山陽線",
+    names: ["山陽線", "山陽本線"],
+    url: "https://trafficinfo.westjr.co.jp/chugoku.html"
+  },
+  {
+    id: "jr-kure",
+    label: "呉線",
+    names: ["呉線"],
+    url: "https://trafficinfo.westjr.co.jp/chugoku.html"
+  },
+  {
+    id: "jr-kabe",
+    label: "可部線",
+    names: ["可部線"],
+    url: "https://trafficinfo.westjr.co.jp/chugoku.html"
+  },
+  {
+    id: "jr-geibi",
+    label: "芸備線",
+    names: ["芸備線"],
+    url: "https://trafficinfo.westjr.co.jp/chugoku.html"
+  }
+];
+
+function normalizeJrText(html) {
+  return stripHtml(html)
+    .replace(/&nbsp;/g, " ")
+    .replace(/。/g, "。\n")
+    .replace(/(【[^】]+】)/g, "\n$1")
+    .replace(/(山陽線|山陽本線|呉線|可部線|芸備線)/g, "\n$1")
+    .replace(/(順次運転見合わせ|運転見合わせ|運転取り止め|運休|徐行運転|遅延|遅れ|再開見込|再開見込み|区間|原因|理由)/g, "\n$1")
+    .replace(/\s+/g, " ")
+    .split(/\n/)
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+function splitJrIncidentRecords(lines) {
+  const joined = lines.join("\n");
+
+  // JRページでは、異常情報が「路線名」または「状況語」を起点に並ぶことが多い。
+  // 同一路線に複数情報がある場合も、それぞれ別レコードとして扱う。
+  const chunks = joined
+    .replace(/\n(?=(山陽線|山陽本線|呉線|可部線|芸備線)\b)/g, "\n@@REC@@")
+    .replace(/\n(?=(順次運転見合わせ|運転見合わせ|運転取り止め|運休|徐行運転|遅延)\b)/g, "\n@@REC@@")
+    .split("@@REC@@")
+    .map(s => s.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+
+  // 断片が短すぎる場合に備えて、前後も少し結合する。
+  const records = [];
+  for (let i = 0; i < chunks.length; i++) {
+    const current = chunks[i];
+    const next = chunks[i + 1] || "";
+    const prev = chunks[i - 1] || "";
+
+    let rec = current;
+    if (!/(山陽線|山陽本線|呉線|可部線|芸備線)/.test(rec) && /(山陽線|山陽本線|呉線|可部線|芸備線)/.test(prev)) {
+      rec = `${prev} ${rec}`;
+    }
+    if (/(山陽線|山陽本線|呉線|可部線|芸備線)/.test(rec) && !/(順次運転見合わせ|運転見合わせ|運転取り止め|運休|徐行運転|遅延|遅れ)/.test(rec) && next) {
+      rec = `${rec} ${next}`;
+    }
+
+    records.push(rec.replace(/\s+/g, " ").trim());
+  }
+
+  return [...new Set(records)];
+}
+
+function recordMatchesLine(record, lineDef) {
+  return lineDef.names.some(name => record.includes(name));
+}
+
+function extractJrRecordsForLine(lines, lineDef) {
+  const allRecords = splitJrIncidentRecords(lines);
+
+  // まず路線名が明示されているレコードを拾う。
+  let records = allRecords.filter(record => recordMatchesLine(record, lineDef));
+
+  // ページ構造によっては「山陽線」の直後に、状況だけのレコードが続く場合がある。
+  // その場合は、該当路線名が出た位置から次の路線名までを追加で見る。
+  const joined = lines.join(" ");
+  for (const name of lineDef.names) {
+    const idx = joined.indexOf(name);
+    if (idx !== -1) {
+      const tail = joined.slice(idx, idx + 1200);
+      const nextLineIdxs = jrLocalLines
+        .flatMap(l => l.names)
+        .filter(n => !lineDef.names.includes(n))
+        .map(n => tail.indexOf(n))
+        .filter(i => i > 20);
+      const end = nextLineIdxs.length ? Math.min(...nextLineIdxs) : tail.length;
+      const section = tail.slice(0, end);
+      const extraRecords = splitJrIncidentRecords(section.split(/(?=順次運転見合わせ|運転見合わせ|運転取り止め|運休|徐行運転|遅延)/));
+      records.push(...extraRecords.filter(r => /(順次運転見合わせ|運転見合わせ|運転取り止め|運休|徐行運転|遅延|遅れ)/.test(r)));
+    }
+  }
+
+  // お知らせ・履歴・長期工事などは除外寄り。
+  const ignorePattern = /(お知らせ|履歴|長期運転見合わせ|保守工事|明日|明後日|払い戻し|振替輸送|ご案内|このページ|利用規約)/;
+
+  records = records
+    .map(r => r.replace(/\s+/g, " ").trim())
+    .filter(r => /(順次運転見合わせ|運転見合わせ|運転取り止め|運休|徐行運転|遅延|遅れ)/.test(r))
+    .filter(r => !(ignorePattern.test(r) && !/(順次運転見合わせ|運転見合わせ|遅延|運休|運転取り止め)/.test(r)));
+
+  // 重複を除去
+  return [...new Set(records)];
+}
+
+function parseJrIncident(record) {
+  let status = "";
+  const statusMatch = record.match(/(順次運転見合わせ|運転見合わせ|運転取り止め|運休|徐行運転|遅延|遅れ)/);
+  if (statusMatch) status = statusMatch[1] === "遅れ" ? "遅延" : statusMatch[1];
+
+  let section = "";
+  const sectionPatterns = [
+    /(?:区間|一部区間)\s*[:：]?\s*([^。]{2,60}?)(?=\s*(?:原因|理由|再開見込|再開見込み|影響|$))/,
+    /([一-龥ぁ-んァ-ヶA-Za-z0-9]+駅?\s*[〜～\-－]\s*[一-龥ぁ-んァ-ヶA-Za-z0-9]+駅?)/,
+    /([一-龥ぁ-んァ-ヶA-Za-z0-9]+駅?\s*から\s*[一-龥ぁ-んァ-ヶA-Za-z0-9]+駅?\s*まで)/
+  ];
+  for (const p of sectionPatterns) {
+    const m = record.match(p);
+    if (m && m[1]) {
+      section = m[1].replace(/\s+/g, " ").trim();
+      break;
+    }
+  }
+
+  // 「海田市と岩国の間」のような表現も拾う。
+  if (!section) {
+    const between = record.match(/([一-龥ぁ-んァ-ヶA-Za-z0-9]+)\s*と\s*([一-龥ぁ-んァ-ヶA-Za-z0-9]+)\s*の間/);
+    if (between) section = `${between[1]}〜${between[2]}`;
+  }
+
+  let reason = "";
+  const reasonPatterns = [
+    /(?:原因|理由)\s*[:：]?\s*([^。]{2,45}?)(?=\s*(?:再開見込|再開見込み|区間|影響|$))/,
+    /(人と接触|倒木|踏切確認|車両確認|信号確認|線路確認|沿線火災|大雨|強風|落石|動物と接触)/
+  ];
+  for (const p of reasonPatterns) {
+    const m = record.match(p);
+    if (m && m[1]) {
+      reason = m[1].replace(/\s+/g, " ").trim();
+      break;
+    }
+  }
+
+  let resume = "";
+  const resumePatterns = [
+    /(?:再開見込|再開見込み)\s*[:：]?\s*([^。]{2,45}?)(?=\s*(?:原因|理由|区間|影響|$))/,
+    /([0-9０-９]{1,2}\s*時\s*[0-9０-９]{0,2}\s*分?\s*頃(?:以降)?)/,
+    /(未定)/
+  ];
+  for (const p of resumePatterns) {
+    const m = record.match(p);
+    if (m && m[1]) {
+      resume = m[1].replace(/\s+/g, " ").trim();
+      break;
+    }
+  }
+
+  const parts = [];
+  if (status) parts.push(status);
+  if (section) parts.push(section);
+  if (reason) parts.push(reason);
+  if (resume) parts.push(`再開見込 ${resume}`);
+
+  return parts.length ? parts.join("／") : "要確認";
+}
+
+function summarizeJrLine(lines, lineDef) {
+  const records = extractJrRecordsForLine(lines, lineDef);
+
+  if (!records.length) {
+    return {
+      level: "ok",
+      message: "平常運転"
+    };
+  }
+
+  const incidents = records
+    .map(parseJrIncident)
+    .filter(Boolean);
+
+  if (!incidents.length) {
+    return {
+      level: "ok",
+      message: "平常運転"
+    };
+  }
+
+  // 長くなりすぎないよう最大4件まで。5件以上なら「ほかあり」を付ける。
+  const shown = incidents.slice(0, 4);
+  const suffix = incidents.length > 4 ? `／ほか${incidents.length - 4}件` : "";
+
+  return {
+    level: "alert",
+    message: shown.map((s, i) => incidents.length > 1 ? `${i + 1}) ${s}` : s).join("　") + suffix
+  };
+}
+
+async function checkJrLocalLine(lineDef, cachedHtml = null) {
+  const url = lineDef.url;
+  try {
+    const html = cachedHtml || await fetchText(url);
+    const lines = normalizeJrText(html);
+    const result = summarizeJrLine(lines, lineDef);
+
+    return {
+      label: lineDef.label,
+      url,
+      level: result.level,
+      message: result.message
+    };
+  } catch (error) {
+    return {
+      label: lineDef.label,
+      url,
+      level: "error",
+      message: "取得できませんでした。公式ページで確認"
+    };
+  }
+}
 
 function checkKeywords(textOrHtml, keywords) {
   const text = stripHtml(textOrHtml);
@@ -629,22 +842,45 @@ async function checkWeather() {
 async function main() {
   const items = [];
 
-  // Weather first because it affects the whole shift.
+  // 1. 天気
   items.push(await checkWeather());
 
+  // 2. JR広島近郊。JRは1回だけ取得して、4路線に分けて判定する。
+  let jrHtml = null;
+  try {
+    jrHtml = await fetchText("https://trafficinfo.westjr.co.jp/chugoku.html");
+  } catch (error) {
+    jrHtml = null;
+  }
+
+  for (const line of jrLocalLines) {
+    items.push(await checkJrLocalLine(line, jrHtml));
+  }
+
+  // 3. 広電・バス・空港
   for (const source of sources) {
     items.push(await checkSource(source));
   }
 
+  // 4. カープ・サンフレッチェ
   for (const source of eventSources) {
-    items.push(await checkHomeEvent(source));
+    items.push(await checkEventSource(source));
   }
 
   const now = new Date();
+  const updatedAtJst = new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(now);
+
   const data = {
-    updatedAt: now.toISOString(),
-    updatedAtJst: toJstString(now),
-    scheduleNote: "JST 00:00 / 06:00 / 12:00 / 18:00 目安で更新",
+    updatedAtJst,
+    generatedAt: now.toISOString(),
     items
   };
 
