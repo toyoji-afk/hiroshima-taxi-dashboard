@@ -1,4 +1,4 @@
-// update-status.js v48: Hiroden category-aware parser fix + JMA/JR/airport stable version
+// update-status.js v50: Open-Meteo Hiroshima-center weather + Hiroden/JR stable version
 // 広島市タクシーダッシュボード：本日の自動巡回メモ生成
 // Node.js 20+ / GitHub Actions
 //
@@ -16,8 +16,7 @@ const OUT_PATH = path.join(process.cwd(), 'auto/data/status.json');
 const DEBUG_DIR = path.join(process.cwd(), 'auto/data/debug');
 
 const URLS = {
-  weather: 'https://www.jma.go.jp/bosai/forecast/data/forecast/340000.json',
-  weatherOverview: 'https://www.jma.go.jp/bosai/forecast/data/overview_forecast/340000.json',
+  weather: 'https://api.open-meteo.com/v1/forecast',
   hiroden: 'https://www.hiroden.co.jp/traffic/info/',
   hiroshimaBus: 'https://hirobus-info-rosen.jp/',
   hiroshimaKotsu: 'https://www.hiroko-group.co.jp/kotsu/rosen_unkou.htm',
@@ -29,7 +28,7 @@ const URLS = {
   sanfrecce: 'https://www.sanfrecce.co.jp/matches/results',
 };
 
-const USER_AGENT = 'Mozilla/5.0 GitHubActions HiroshimaTaxiDashboard/44.0';
+const USER_AGENT = 'Mozilla/5.0 GitHubActions HiroshimaTaxiDashboard/50.0';
 
 function nowIsoJst() {
   return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tokyo' }).replace(' ', 'T') + '+09:00';
@@ -293,42 +292,118 @@ function requireJrParser() {
 }
 
 async function getWeatherStatus() {
-  const name = '広島市周辺天気';
-  const source = 'https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=340000';
+  const name = '広島市中心天気';
+
+  // 広島市中心部（紙屋町・八丁堀周辺を想定）の代表座標。
+  // Open-Meteoは緯度経度指定なので、気象庁の「南部」より広島市中心部寄りにできます。
+  const latitude = 34.3853;
+  const longitude = 132.4553;
+  const url = `${URLS.weather}?latitude=${latitude}&longitude=${longitude}` +
+    '&current=temperature_2m,weather_code' +
+    '&hourly=temperature_2m,precipitation_probability,precipitation,weather_code' +
+    '&daily=temperature_2m_max' +
+    '&timezone=Asia%2FTokyo&forecast_days=1';
+
   try {
-    const res = await fetch(URLS.weather, { headers: { 'user-agent': USER_AGENT, 'accept-language': 'ja,en-US;q=0.9' } });
+    const res = await fetch(url, { headers: { 'user-agent': USER_AGENT, 'accept-language': 'ja,en-US;q=0.9' } });
+    if (!res.ok) throw new Error(`Open-Meteo HTTP ${res.status}`);
     const json = await res.json();
-    writeDebug('jma-forecast.json', JSON.stringify(json, null, 2));
+    writeDebug('openmeteo-forecast.json', JSON.stringify(json, null, 2));
 
-    const first = Array.isArray(json) ? json[0] : json;
-    const ts = first?.timeSeries || [];
-    const today = todayJstParts();
-    const todayDate = `${today.year}-${today.month}-${today.day}`;
+    const currentTemp = json?.current?.temperature_2m;
+    const currentCode = Number(json?.current?.weather_code);
+    const currentWeather = weatherCodeToJapanese(currentCode);
+    const maxTemp = Array.isArray(json?.daily?.temperature_2m_max) ? json.daily.temperature_2m_max[0] : null;
 
-    const weatherTs = ts[0] || {};
-    const weatherArea = pickArea(weatherTs.areas, ['南部', '広島県南部', '広島']);
-    const weatherIndex = pickTodayIndex(weatherTs.timeDefines, todayDate, 0);
-    const weather = cleanJmaText(weatherArea?.weathers?.[weatherIndex] || weatherArea?.weathers?.[0] || '天気予報を確認');
+    const blocks = buildOpenMeteoThreeHourBlocks(json, 4);
+    const maxPop = blocks.reduce((m, b) => Math.max(m, b.pop ?? 0), 0);
+    const hasRainOrThunder = blocks.some(b => /雨|雷|雪|霧/.test(b.weather || ''));
 
-    const popTs = ts.find(x => Array.isArray(x.areas) && x.areas.some(a => Array.isArray(a.pops))) || {};
-    const popArea = pickArea(popTs.areas, ['南部', '広島県南部', '広島']);
-    const popParts = buildPopParts(popTs.timeDefines || [], popArea?.pops || [], todayDate);
-
-    const tempTs = ts.find(x => Array.isArray(x.areas) && x.areas.some(a => Array.isArray(a.temps) || Array.isArray(a.tempsMax) || Array.isArray(a.tempsMin))) || {};
-    const tempArea = pickArea(tempTs.areas, ['広島', '南部', '広島県南部']);
-    const tempInfo = buildTempInfo(tempTs.timeDefines || [], tempArea || {}, todayDate);
+    const blockText = blocks.length
+      ? `3時間予報 ${blocks.map(b => `${b.label} ${b.weather} ${b.pop}%${b.rain > 0 ? `/${b.rain}mm` : ''}`).join(' ／ ')}`
+      : '';
 
     const body = [
-      weather,
-      tempInfo ? tempInfo : '',
-      popParts.length ? `降水確率 ${popParts.map(p => `${p.label}${p.percent}%`).join('／')}` : '',
+      `${currentWeather}${currentTemp != null ? ` 現在${num(currentTemp)}℃` : ''}${maxTemp != null ? ` 最高${num(maxTemp)}℃` : ''}`,
+      blockText,
     ].filter(Boolean).join('　');
 
-    // 天気は本文に降水確率まで出せば十分なので、雨・雷でも取得成功ならOK扱いにします。
-    return makeItem(name, body || '気象庁の天気予報を確認', '平常', source);
+    // タクシー乗務向け：3時間予報の降水確率が50%以上なら配車増・乗降注意として「注意」。
+    // 雷雨・強雨・雪なども注意扱いにします。
+    const severeWeather = blocks.some(b => /雷雨|強い雨|激しい|雪|強いにわか雨/.test(b.weather || ''));
+    const status = (maxPop >= 50 || severeWeather || (maxPop >= 40 && hasRainOrThunder)) ? '要確認' : '平常';
+
+    // APIのJSONに飛ばしても利用者には読みにくいので、自動巡回メモ側はリンクなし。
+    return makeItem(name, body || 'Open-Meteo天気予報を確認', status, '');
   } catch (e) {
-    return errorItem(name, e, source);
+    return errorItem(name, e, '');
   }
+}
+
+function openMeteoHourlyIndexByTime(json) {
+  const times = json?.hourly?.time || [];
+  const map = new Map();
+  times.forEach((t, i) => map.set(String(t), i));
+  return map;
+}
+
+function openMeteoSeverity(code) {
+  const c = Number(code);
+  // 大まかな強さ。3時間ブロック内で一番強い天気を表示するためのもの。
+  if ([95, 96, 99].includes(c)) return 90;
+  if ([82, 65, 67, 75, 86].includes(c)) return 80;
+  if ([63, 81, 73, 85].includes(c)) return 70;
+  if ([61, 80, 71, 77].includes(c)) return 60;
+  if ([51, 53, 55, 56, 57].includes(c)) return 50;
+  if ([45, 48].includes(c)) return 40;
+  if (c === 3) return 30;
+  if (c === 2) return 20;
+  if (c === 1) return 10;
+  if (c === 0) return 0;
+  return 0;
+}
+
+function buildOpenMeteoThreeHourBlocks(json, maxBlocks = 4) {
+  const hourly = json?.hourly || {};
+  const times = Array.isArray(hourly.time) ? hourly.time : [];
+  const pops = Array.isArray(hourly.precipitation_probability) ? hourly.precipitation_probability : [];
+  const rains = Array.isArray(hourly.precipitation) ? hourly.precipitation : [];
+  const codes = Array.isArray(hourly.weather_code) ? hourly.weather_code : [];
+  const timeIndex = openMeteoHourlyIndexByTime(json);
+
+  const nowParts = new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false
+  }).formatToParts(new Date());
+  const pick = t => nowParts.find(p => p.type === t)?.value;
+  const y = pick('year');
+  const m = pick('month');
+  const d = pick('day');
+  const nowHour = Number(pick('hour'));
+  const startSlot = Math.floor(nowHour / 3) * 3;
+
+  const blocks = [];
+  for (const h of [0, 3, 6, 9, 12, 15, 18, 21]) {
+    if (h < startSlot) continue;
+    const indexes = [];
+    for (let k = 0; k < 3; k++) {
+      const hh = String(h + k).padStart(2, '0');
+      const key = `${y}-${m}-${d}T${hh}:00`;
+      const idx = timeIndex.get(key);
+      if (idx !== undefined) indexes.push(idx);
+    }
+    if (!indexes.length) continue;
+
+    const popValues = indexes.map(i => Number(pops[i])).filter(n => !Number.isNaN(n));
+    const rainValues = indexes.map(i => Number(rains[i])).filter(n => !Number.isNaN(n));
+    const codeValues = indexes.map(i => Number(codes[i])).filter(n => !Number.isNaN(n));
+    const pop = popValues.length ? Math.max(...popValues) : 0;
+    const rain = rainValues.length ? Math.round(rainValues.reduce((a, b) => a + b, 0) * 10) / 10 : 0;
+    const code = codeValues.length ? codeValues.sort((a, b) => openMeteoSeverity(b) - openMeteoSeverity(a))[0] : null;
+    const label = `${h}-${Math.min(h + 3, 24)}時`;
+    blocks.push({ label, pop, rain, weather: weatherCodeToJapanese(code), code });
+    if (blocks.length >= maxBlocks) break;
+  }
+  return blocks;
 }
 
 function pickArea(areas, preferredNames) {
@@ -352,6 +427,36 @@ function cleanJmaText(s) {
     .replace(/\s+/g, ' ')
     .replace(/所により/g, 'ところにより')
     .trim();
+}
+
+
+
+function cleanHiroshimaCityWeatherText(s) {
+  let text = cleanJmaText(s);
+
+  // 気象庁の「南部」予報には、広島市周辺ではなく
+  // 「福山・三原では…」「備後では…」のような局地文が混じることがあります。
+  // 広島市タクシー用なので、広島市周辺に直接関係しない局地句は落とします。
+  const nonHiroshimaAreaWords = [
+    '福山', '三原', '尾道', '府中', '竹原', '東広島',
+    '庄原', '三次', '北広島', '安芸高田', '世羅', '神石高原',
+    '備後', '北部'
+  ];
+
+  const areaGroup = `(?:${nonHiroshimaAreaWords.join('|')})(?:[・、,\s]*(?:${nonHiroshimaAreaWords.join('|')}))*`;
+
+  // 例: 「くもり 福山・三原 では 夕方 雨 雷を伴い激しく降る」→「くもり」
+  text = text.replace(new RegExp(`\\s*${areaGroup}\\s*では\\s*.*$`), '').trim();
+
+  // 広島・呉は広島市周辺として残すが、表示を少し自然にする。
+  text = text
+    .replace(/広島\s*[・、,]\s*呉\s*では/g, '広島・呉では')
+    .replace(/広島\s*では/g, '広島では')
+    .replace(/呉\s*では/g, '呉では')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return text || '天気予報を確認';
 }
 
 function hourFromIso(t) {
@@ -771,7 +876,7 @@ async function main() {
   const { getJrStatuses } = requireJrParser();
 
   // 表示順固定：ユーザー指定どおり
-  const weatherStatus = await safeGet('広島市周辺天気', getWeatherStatus);
+  const weatherStatus = await safeGet('広島市中心天気', getWeatherStatus);
   const jrStatuses = await safeGet('JR西日本', getJrStatuses);
   const hirodenStatus = await safeGet('広島電鉄', getHirodenStatus);
   const hiroshimaBusStatus = await safeGet('広島バス 路線バス', getHiroshimaBusStatus);
