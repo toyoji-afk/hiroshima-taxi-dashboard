@@ -119,6 +119,7 @@ async function fetchText(url) {
 
 
 
+
 function checkKeywords(textOrHtml, keywords) {
   const text = stripHtml(textOrHtml);
   const found = keywords.filter(k => text.includes(k));
@@ -128,72 +129,120 @@ function checkKeywords(textOrHtml, keywords) {
   };
 }
 
-function normalizeLinesFromHtml(html) {
+function toCleanLinesFromHtml(html) {
   return stripHtml(html)
     .replace(/。/g, "。\n")
-    .replace(/／/g, "\n")
-    .replace(/\|/g, "\n")
+    .replace(/詳細・備考/g, "\n詳細・備考 ")
+    .replace(/復旧見込/g, "\n復旧見込 ")
+    .replace(/程度/g, "\n程度 ")
+    .replace(/事由/g, "\n事由 ")
+    .replace(/区間/g, "\n区間 ")
     .replace(/\s+/g, " ")
-    .split(/\n|(?=2号線)|(?=5号線)|(?=6号線)|(?=牛田早稲田)|(?=府中永田)|(?=府中山田)|(?=府中ニュータウン)|(?=温品)/)
+    .split(/\n/)
     .map(s => s.trim())
     .filter(Boolean);
 }
 
-function judgeHirodenRouteLine(line) {
-  // 「運休など」「遅延など」「運行情報」などの説明文は路線別異常として扱わない
-  const genericInfoPattern = /(運休など|遅延など|運休・遅延など|運行情報|お知らせ|ご確認|確認ください|場合があります|恐れ|おそれ|可能性|予定|工事|交通規制|規制に伴|事前案内|予告|見込み)/;
-  if (genericInfoPattern.test(line)) return "○";
+function extractHirodenBusText(html) {
+  const text = stripHtml(html)
+    .replace(/。/g, "。\n")
+    .replace(/(20\d{2}\/\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2}\s+更新)/g, "\n$1")
+    .replace(/(区間|程度|復旧見込|事由|詳細・備考)/g, "\n$1 ");
 
-  if (/(運休|運転見合わせ|見合わせ|運行見合わせ|欠便|運行休止|運行停止)/.test(line)) {
-    return "運休等";
+  const busStart = text.indexOf("## 路線バス");
+  if (busStart === -1) return "";
+
+  const afterBus = text.slice(busStart);
+  const endMarkers = ["## 高速乗合バス", "## 空港連絡バス", "## 遅延証明", "高速乗合バス", "空港連絡バス"];
+  let end = afterBus.length;
+
+  for (const marker of endMarkers) {
+    const idx = afterBus.indexOf(marker, 10);
+    if (idx !== -1 && idx < end) end = idx;
   }
-  if (/(迂回|迂回運行)/.test(line)) {
-    return "迂回";
+
+  return afterBus.slice(0, end);
+}
+
+function splitHirodenBusRecords(busText) {
+  const normalized = busText
+    .replace(/\r/g, "")
+    .replace(/(20\d{2}\/\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2}\s+更新)/g, "\n$1")
+    .replace(/\n\s+/g, "\n")
+    .trim();
+
+  return normalized
+    .split(/\n(?=20\d{2}\/\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2}\s+更新)/)
+    .map(s => s.replace(/\s+/g, " ").trim())
+    .filter(s => s.includes("更新"));
+}
+
+function getHirodenRouteStatus(record) {
+  const statusMatch = record.match(/更新\s+(運休|運行見合わせ|運転見合わせ|見合わせ|遅延|迂回|欠便)/);
+  let status = statusMatch ? statusMatch[1] : "";
+
+  if (!status) {
+    if (/運休|運行見合わせ|運転見合わせ|見合わせ|欠便/.test(record)) status = "運休等";
+    else if (/迂回/.test(record)) status = "迂回";
+    else if (/遅延|遅れ/.test(record)) status = "遅延";
   }
-  if (/(遅延|遅れ|大幅な遅れ|大幅遅延|遅延発生|遅れが発生)/.test(line)) {
-    return "遅延";
+
+  if (/運休|運行見合わせ|運転見合わせ|見合わせ|欠便/.test(status)) return "運休等";
+  if (/迂回/.test(status)) return "迂回";
+  if (/遅延|遅れ/.test(status)) return "遅延";
+  return status || "要確認";
+}
+
+function extractHirodenDetail(record) {
+  const degree = record.match(/程度\s+([^区間復旧見込事由詳細]{2,60}?)(?=\s+(区間|復旧見込|事由|詳細・備考)|$)/);
+  if (degree && degree[1]) return degree[1].trim();
+
+  const recovery = record.match(/復旧見込\s+([^区間程度事由詳細]{2,60}?)(?=\s+(区間|程度|事由|詳細・備考)|$)/);
+  if (recovery && recovery[1]) return recovery[1].trim();
+
+  const detail = record.match(/詳細・備考\s+(.{2,70})/);
+  if (detail && detail[1]) {
+    const d = detail[1].replace(/\s+/g, " ").trim();
+    const m = d.match(/(最大\s*\d+\s*分[^。 ]*|最大[０-９0-9]+分[^。 ]*|[0-9０-９]+分[〜～\-−][0-9０-９]+分程度|[0-9０-９]+分程度|遅れが発生[^。 ]*)/);
+    return (m ? m[1] : d.slice(0, 28)).trim();
   }
-  return "○";
+
+  return "";
 }
 
 function judgeHirodenPriorityRoutes(rawHtml) {
-  const lines = normalizeLinesFromHtml(rawHtml);
+  const busText = extractHirodenBusText(rawHtml);
+  const records = splitHirodenBusRecords(busText);
 
-  const routeDefs = [
+  const routes = [
     {
       key: "5号線",
-      tokens: ["5号線", "牛田早稲田", "広島駅新幹線口"]
+      matchers: [/(\s|^)5\s*5号線/, /5号線（[^）]*牛田早稲田/, /牛田早稲田.*広島駅新幹線口/]
     },
     {
       key: "6号線",
-      tokens: ["6号線", "牛田早稲田", "八丁堀", "江波"]
+      matchers: [/(\s|^)6\s*6号線/, /6号線（[^）]*牛田早稲田/, /牛田早稲田.*江波/]
     },
     {
       key: "2号線",
-      tokens: ["2号線", "府中永田", "府中山田", "府中ニュータウン", "温品"]
+      matchers: [/(\s|^)2\s*2号線/, /2号線（[^）]*(府中永田|府中山田|府中ニュータウン|温品)/, /(府中永田|府中山田|府中ニュータウン|温品4丁目)/]
     }
   ];
 
   const results = [];
 
-  for (const route of routeDefs) {
-    let status = "○";
+  for (const route of routes) {
+    const hit = records.find(record => route.matchers.some(re => re.test(record)));
 
-    // 路線名・行先名を含む行だけを見る。
-    // ページ内に路線が出ていない場合は異常なし扱い。
-    const relatedLines = lines.filter(line =>
-      route.tokens.some(token => line.includes(token))
-    );
-
-    for (const line of relatedLines) {
-      const s = judgeHirodenRouteLine(line);
-      if (s !== "○") {
-        status = s;
-        break;
-      }
+    if (!hit) {
+      results.push(`${route.key}○`);
+      continue;
     }
 
-    results.push(`${route.key}${status}`);
+    const status = getHirodenRouteStatus(hit);
+    const detail = extractHirodenDetail(hit);
+    const suffix = detail ? `${status}（${detail}）` : status;
+    results.push(`${route.key}${suffix}`);
   }
 
   const hasAlert = results.some(v => !v.endsWith("○"));
@@ -206,11 +255,7 @@ function judgeHirodenPriorityRoutes(rawHtml) {
 
 
 function stripNoticeLikeText(textOrHtml) {
-  const text = stripHtml(textOrHtml);
-
-  // 広島バス・広島交通は「お知らせ」「遅延する恐れ」「工事予定」などが
-  // 同じページ内に出ることがあるため、まず読みやすい行単位に整える。
-  return text
+  return stripHtml(textOrHtml)
     .replace(/。/g, "。\n")
     .replace(/／/g, "\n")
     .replace(/\|/g, "\n")
@@ -218,57 +263,105 @@ function stripNoticeLikeText(textOrHtml) {
     .trim();
 }
 
-function judgeBusOperation(rawText) {
-  const normalized = stripNoticeLikeText(rawText);
-  const lines = normalized
-    .split(/\n/)
-    .map(s => s.trim())
-    .filter(Boolean);
-
+function judgeHiroshimaBusOperation(rawText) {
+  const text = stripNoticeLikeText(rawText);
+  const lines = text.split(/\n/).map(s => s.trim()).filter(Boolean);
   const allText = lines.join(" ");
 
-  // 「通常運行」が明確にある場合は、まず通常運行を優先する。
-  // 広島バスのページでは、お知らせ欄に注意語があっても、
-  // 路線別状況欄が通常運行なら現在状況としては通常扱いにする。
-  const normalPattern = /(通常運行|平常運行|正常運行|概ね通常|おおむね通常|現在、?平常どおり|現在、?通常どおり)/;
-  const hasNormal = normalPattern.test(allText);
+  // 広島バスは「お知らせ」に将来の遅延可能性が多い。
+  // 現在の状態としては、エリア別の通常運行を最優先する。
+  const areaSectionMatch = allText.match(/■エリア別の運行状況([\s\S]*?)(■路線別の運行状況|遅延証明書|運行状況「くるけん」|$)/);
+  const areaSection = areaSectionMatch ? areaSectionMatch[1] : allText;
 
-  // これらは「今発生中の異常」ではなく、案内・予告・可能性として無視寄り。
-  const ignorePattern = /(遅延・運休など|運休・遅延など|遅延運休など|遅延、?運休など|恐れ|おそれ|可能性|予定|工事|交通規制|規制に伴|事前案内|予告|見込み|お知らせ|ニュース|新着情報|ご確認|確認ください|場合があります|ライブにお伝えするものではありません)/;
+  if (/通常運行/.test(areaSection) && !/(運休|運行見合わせ|運転見合わせ|欠便|遅延発生|大幅遅延)/.test(areaSection)) {
+    return {
+      level: "ok",
+      message: "通常運行、詳細は公式ページで確認"
+    };
+  }
 
-  // 「現在」「発生」「見合わせ中」など、発生中らしさがある場合だけ強く見る。
-  const activeSeriousPattern = /(現在.*?(運休|運転見合わせ|見合わせ|運行見合わせ|欠便|大幅な遅れ|大幅遅延|遅延発生|遅れが発生|迂回運行|運行休止|運行停止)|(?:運休|運転見合わせ|見合わせ|運行見合わせ|欠便|大幅な遅れ|大幅遅延|遅延発生|遅れが発生|迂回運行|運行休止|運行停止).*?(発生|しています|中です|実施中))/;
+  // 「お知らせ」「恐れ」「可能性」「工事予定」は現在の異常扱いにしない。
+  const ignorePattern = /(お知らせ|恐れ|おそれ|可能性|予定|工事|交通規制|規制に伴|事前案内|予告|見込み|場合があります|ライブにお伝えするものではありません)/;
 
   for (const line of lines) {
     if (ignorePattern.test(line)) continue;
-
-    if (activeSeriousPattern.test(line)) {
+    if (/(現在.*?(運休|運行見合わせ|運転見合わせ|欠便|遅延発生|大幅遅延)|(?:運休|運行見合わせ|運転見合わせ|欠便|遅延発生|大幅遅延).*?(発生|しています|中です))/.test(line)) {
       return {
         level: "alert",
-        message: "遅延・運休などの可能性あり。公式ページで確認"
-      };
-    }
-
-    // 行全体が短く、状態欄のように見える場合だけ拾う。
-    // 長い文章内の説明文は拾いすぎるため除外。
-    if (line.length <= 80 && /(運休|運転見合わせ|見合わせ|運行見合わせ|欠便|大幅遅延|遅延発生|迂回運行|運行休止|運行停止)/.test(line)) {
-      return {
-        level: "alert",
-        message: "遅延・運休などの可能性あり。公式ページで確認"
+        message: "一部遅延・運休状況あり、詳細は公式ページで確認"
       };
     }
   }
 
-  if (hasNormal) {
+  if (/通常運行/.test(allText)) {
     return {
       level: "ok",
-      message: "通常運行"
+      message: "通常運行、詳細は公式ページで確認"
     };
   }
 
   return {
     level: "ok",
-    message: "明確な遅延・運休情報なし。詳細は公式ページで確認"
+    message: "明確な遅延・運休情報なし、詳細は公式ページで確認"
+  };
+}
+
+function judgeHiroshimaKotsuOperation(rawText) {
+  const text = stripNoticeLikeText(rawText);
+  const allText = text.replace(/\n/g, " ");
+
+  const routeStatusSection = allText.includes("路線名 運行状況")
+    ? allText.slice(allText.indexOf("路線名 運行状況"))
+    : allText;
+
+  const normalCount = (routeStatusSection.match(/平常運行/g) || []).length;
+  const alertPattern = /(運休|運行見合わせ|運転見合わせ|見合わせ|欠便|遅延|大幅な遅れ|大幅遅延|迂回|運行休止|運行停止)/;
+
+  // 問い合わせ先や注意書きではなく、路線一覧内に異常語がある場合だけalert
+  const withoutNotes = routeStatusSection
+    .replace(/ご利用上のご注意[\s\S]*?路線名 運行状況/g, "")
+    .replace(/お問合せ先[\s\S]*?路線名 運行状況/g, "");
+
+  if (alertPattern.test(withoutNotes.replace(/平常運行/g, ""))) {
+    return {
+      level: "alert",
+      message: "一部遅延・運休状況あり、詳細は公式ページで確認"
+    };
+  }
+
+  if (normalCount > 0) {
+    return {
+      level: "ok",
+      message: "平常運行、詳細は公式ページで確認"
+    };
+  }
+
+  return {
+    level: "ok",
+    message: "明確な遅延・運休情報なし、詳細は公式ページで確認"
+  };
+}
+
+function judgeBusOperation(rawText, sourceId = "") {
+  if (sourceId === "hiroshima-bus") return judgeHiroshimaBusOperation(rawText);
+  if (sourceId === "hiroshima-kotsu") return judgeHiroshimaKotsuOperation(rawText);
+
+  const text = stripNoticeLikeText(rawText);
+  if (/(通常運行|平常運行|正常運行)/.test(text)) {
+    return {
+      level: "ok",
+      message: "通常運行、詳細は公式ページで確認"
+    };
+  }
+  if (/(運休|運行見合わせ|運転見合わせ|欠便|遅延発生|大幅遅延)/.test(text)) {
+    return {
+      level: "alert",
+      message: "一部遅延・運休状況あり、詳細は公式ページで確認"
+    };
+  }
+  return {
+    level: "ok",
+    message: "明確な遅延・運休情報なし、詳細は公式ページで確認"
   };
 }
 
@@ -292,7 +385,7 @@ async function checkSource(source) {
     }
 
     if (source.mode === "bus-operation") {
-      const result = judgeBusOperation(html);
+      const result = judgeBusOperation(html, source.id);
       return {
         label: source.label,
         url: source.url,
