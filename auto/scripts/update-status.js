@@ -1,4 +1,4 @@
-// update-status.js v44: JMA text, airport wording fix, normal messages do not self-trigger warning
+// update-status.js v47: Hiroden parser fix + JMA/JR/airport stable version
 // 広島市タクシーダッシュボード：本日の自動巡回メモ生成
 // Node.js 20+ / GitHub Actions
 //
@@ -466,13 +466,123 @@ function excerptAbnormal(text, maxLen = 110) {
   return t.slice(i, i + maxLen).trim();
 }
 
+function normalizeHirodenRouteName(routeText) {
+  let r = compactText(routeText)
+    .replace(/^広島市中心部エリア\s*/g, '')
+    .replace(/^郊外エリア\s*/g, '')
+    .replace(/^宮島口エリア\s*/g, '')
+    .replace(/^市内線\s*/g, '')
+    .replace(/^電車\s*/g, '')
+    .replace(/^路線バス\s*/g, '')
+    .trim();
+
+  const ekimachi = r.match(/101\s+102\s+103\s+エキまちループ/);
+  if (ekimachi) return 'エキまちループ';
+
+  const busRoute = r.match(/(?:\d+\s+)?(\d+号線（[^）]+）)/);
+  if (busRoute) return busRoute[1];
+
+  const simpleBus = r.match(/(?:\d+\s+)?(\d+号線)/);
+  if (simpleBus) return simpleBus[1];
+
+  const streetcar = r.match(/(\d+号線|本線|宇品線|横川線|江波線|白島線|宮島線)[^\s]*/);
+  if (streetcar) return streetcar[0];
+
+  return r.slice(0, 42).trim();
+}
+
+function extractHirodenOperations(text) {
+  const raw = compactText(text);
+
+  // 広電ページ冒頭の説明文には「運行を中止」「大幅な遅れ」が常に含まれるため、
+  // そこは判定対象から外し、「現在の運行情報」以降だけを見る。
+  let body = raw;
+  const currentIdx = body.indexOf('現在の運行情報');
+  if (currentIdx >= 0) body = body.slice(currentIdx);
+
+  // 本当に情報がない場合の文言。
+  if (/現在(お知らせする)?運行情報はありません|現在、お知らせする情報はありません|現在情報はありません/.test(body)) {
+    return '';
+  }
+
+  const detailIdx = body.indexOf('運行情報の詳細は以下の通りです');
+  const summaryPart = detailIdx >= 0 ? body.slice(0, detailIdx) : body;
+  const detailPart = detailIdx >= 0 ? body.slice(detailIdx) : body;
+
+  // まず上部の「現在の運行情報」一覧から、5号線・6号線・2号線などの路線名を確実に拾う。
+  // ここは詳細本文より短く、ダッシュボード向けの要約に向いている。
+  const headMatches = [...summaryPart.matchAll(/(20\d{2}\/\d{1,2}\/\d{1,2})\s+(\d{1,2}:\d{2})\s+更新\s+(遅延|運休|運転見合わせ|運行見合わせ|一部運休|迂回|通行止め|ダイヤ乱れ)\s+([\s\S]*?)(?=20\d{2}\/\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2}\s+更新\s+(?:遅延|運休|運転見合わせ|運行見合わせ|一部運休|迂回|通行止め|ダイヤ乱れ)|運行情報の詳細は以下の通りです|$)/g)];
+
+  const summaries = [];
+  for (const m of headMatches) {
+    const time = m[2];
+    const state = m[3];
+    const route = normalizeHirodenRouteName(m[4]);
+    if (!route) continue;
+    // 冒頭説明文やナビゲーションを誤って拾った場合は除外。
+    if (/このページでは|ナビゲーション|到着時間|運行情報メニュー/.test(route)) continue;
+    summaries.push({ time, state, route });
+  }
+
+  if (summaries.length) {
+    const byState = new Map();
+    for (const x of summaries) {
+      const key = x.state;
+      if (!byState.has(key)) byState.set(key, []);
+      const arr = byState.get(key);
+      if (!arr.some(y => y.route === x.route)) arr.push(x);
+    }
+
+    const parts = [];
+    for (const [state, arr] of byState.entries()) {
+      const routes = arr.slice(0, 8).map(x => x.route).join('、');
+      const latest = arr.map(x => x.time).sort().slice(-1)[0];
+      const more = arr.length > 8 ? ` ほか${arr.length - 8}件` : '';
+      parts.push(`路線バス ${state}：${routes}${more}（${latest}更新）`);
+    }
+    return parts.join(' ／ ');
+  }
+
+  // 一覧が取れない場合は、詳細ブロックから拾う。
+  const matches = [...detailPart.matchAll(/(20\d{2}\/\d{1,2}\/\d{1,2})\s+(\d{1,2}:\d{2})\s+更新\s+(遅延|運休|運転見合わせ|運行見合わせ|一部運休|迂回|通行止め|ダイヤ乱れ)([\s\S]*?)(?=20\d{2}\/\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2}\s+更新\s+(?:遅延|運休|運転見合わせ|運行見合わせ|一部運休|迂回|通行止め|ダイヤ乱れ)|バス延着証明書の発行はこちら|詳しい運行状況は|$)/g)];
+
+  const chunks = [];
+  for (const m of matches) {
+    const time = m[2];
+    const state = m[3];
+    const block = compactText(m[4]);
+    const route = normalizeHirodenRouteName(block);
+    const section = (block.match(/区間\s+([^事由程度詳細]+)/) || [])[1];
+    const degree = (block.match(/程度\s+([^事由詳細]+)/) || [])[1];
+    let chunk = `${state}：${route}`;
+    if (section) chunk += ` 区間：${compactText(section)}`;
+    if (degree) chunk += ` 程度：${compactText(degree)}`;
+    chunk += `（${time}更新）`;
+    if (route) chunks.push(chunk);
+  }
+
+  if (chunks.length) {
+    return `路線バス ${chunks.slice(0, 5).join(' ／ ')}`;
+  }
+
+  // 詳細側の構造が変わった場合の保険。
+  // ただし冒頭説明文の「大幅な遅れ」「運行を中止」はここには入れない。
+  const summaryIdx = body.indexOf('運行情報の表題');
+  const summary = summaryIdx >= 0 && detailIdx >= 0 ? body.slice(summaryIdx, detailIdx) : body;
+  if (/(20\d{2}\/\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2}\s+更新\s+)?(?:遅延|運休|運転見合わせ|運行見合わせ|一部運休|迂回|通行止め|ダイヤ乱れ)/.test(summary)) {
+    return excerptAbnormal(summary, 180);
+  }
+
+  return '';
+}
+
 async function getHirodenStatus() {
   const name = '広島電鉄';
   try {
     const { text } = await fetchText(URLS.hiroden, 'hiroden');
-    if (hasNoInfoText(text)) return normalItem(name, URLS.hiroden);
-    if (detectTransitAbnormal(text)) return makeItem(name, excerptAbnormal(text), '要確認', URLS.hiroden);
-    return makeItem(name, '公式運行情報ページを確認（大きな乱れ情報なし想定）', '確認', URLS.hiroden);
+    const ops = extractHirodenOperations(text);
+    if (ops) return makeItem(name, ops, '要確認', URLS.hiroden);
+    return normalItem(name, URLS.hiroden);
   } catch (e) {
     return errorItem(name, e, URLS.hiroden);
   }
