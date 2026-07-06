@@ -118,8 +118,57 @@ async function fetchText(url) {
 
 
 
-function judgeHirodenPriorityRoutes(rawText) {
-  const text = rawText.replace(/\s+/g, " ").trim();
+function checkKeywords(textOrHtml, keywords) {
+  const text = stripHtml(textOrHtml);
+  const found = keywords.filter(k => text.includes(k));
+  return {
+    level: found.length ? "alert" : "ok",
+    found
+  };
+}
+
+function extractHirodenBusSection(text) {
+  const plain = text.replace(/\s+/g, " ").trim();
+
+  const busMarkers = [
+    "## 路線バス",
+    "### 路線バス",
+    "路線バス"
+  ];
+
+  let start = -1;
+  for (const marker of busMarkers) {
+    const idx = plain.indexOf(marker);
+    if (idx !== -1) {
+      start = idx;
+      break;
+    }
+  }
+
+  if (start === -1) return plain;
+
+  const section = plain.slice(start);
+
+  const nextMarkers = [
+    "## 高速乗合バス",
+    "### 高速乗合バス",
+    "## 空港連絡バス",
+    "### 空港連絡バス",
+    "お客様へは"
+  ];
+
+  let end = section.length;
+  for (const marker of nextMarkers) {
+    const idx = section.indexOf(marker, 20);
+    if (idx !== -1 && idx < end) end = idx;
+  }
+
+  return section.slice(0, end);
+}
+
+function judgeHirodenPriorityRoutes(rawHtml) {
+  const text = stripHtml(rawHtml);
+  const busSection = extractHirodenBusSection(text);
 
   const routes = [
     {
@@ -136,8 +185,8 @@ function judgeHirodenPriorityRoutes(rawText) {
     }
   ];
 
-  const seriousPattern = /(運休|運転見合わせ|見合わせ|運行見合わせ|欠便|大幅な遅れ|大幅遅延|遅延発生|遅れが発生|迂回運行|運行休止|運行停止)/;
-  const delayPattern = /(遅延|遅れ)/;
+  const seriousPattern = /(運休|運転見合わせ|見合わせ|運行見合わせ|欠便|大幅な遅れ|大幅遅延|遅延発生|遅れが発生|遅延|遅れ|迂回運行|迂回|運行休止|運行停止)/;
+  const delayPattern = /(遅延|遅れ|大幅な遅れ|大幅遅延|遅延発生|遅れが発生)/;
   const stopPattern = /(運休|運転見合わせ|見合わせ|運行見合わせ|欠便|運行休止|運行停止)/;
   const detourPattern = /(迂回|迂回運行)/;
   const uncertainPattern = /(恐れ|おそれ|可能性|予定|工事|交通規制|規制に伴|事前案内|予告|見込み)/;
@@ -148,10 +197,12 @@ function judgeHirodenPriorityRoutes(rawText) {
     let status = "○";
 
     for (const pattern of route.patterns) {
+      pattern.lastIndex = 0;
       let match;
-      while ((match = pattern.exec(text)) !== null) {
+
+      while ((match = pattern.exec(busSection)) !== null) {
         const idx = match.index;
-        const context = text.slice(Math.max(0, idx - 90), idx + 160);
+        const context = busSection.slice(Math.max(0, idx - 120), idx + 220);
 
         if (seriousPattern.test(context) && !uncertainPattern.test(context)) {
           if (stopPattern.test(context)) {
@@ -166,6 +217,7 @@ function judgeHirodenPriorityRoutes(rawText) {
           break;
         }
       }
+
       if (status !== "○") break;
     }
 
@@ -180,45 +232,48 @@ function judgeHirodenPriorityRoutes(rawText) {
   };
 }
 
-function stripNoticeLikeText(text) {
-  return text
-    .replace(/お知らせ[\s\S]*/g, "")
-    .replace(/ニュース[\s\S]*/g, "")
-    .replace(/新着情報[\s\S]*/g, "")
-    .replace(/工事のお知らせ[\s\S]*/g, "")
-    .replace(/イベント[\s\S]*/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+
+function stripNoticeLikeText(textOrHtml) {
+  const text = stripHtml(textOrHtml);
+
+  // ページ内の「お知らせ」文言を全部消すと、広島バスのページでは
+  // 肝心の運行状況欄まで消えてしまうことがある。
+  // ここではテキスト化と空白整理だけに留める。
+  return text.replace(/\s+/g, " ").trim();
 }
 
 function judgeBusOperation(rawText) {
   const text = stripNoticeLikeText(rawText);
 
-  // 「遅延する恐れ」「可能性」「予定」「工事」などは、
-  // “現在発生中の異常”としては拾いすぎない。
+  // まず「通常運行」が複数出ている場合は、現在状況としては概ね正常寄り。
+  const normalCount = (text.match(/通常運行|平常運行|正常運行|概ね通常|おおむね通常/g) || []).length;
+
+  // 「恐れ」「可能性」「予定」「工事」などは、お知らせ・予告として扱い、
+  // 現在発生中の異常としては拾いすぎない。
   const uncertainPattern = /(恐れ|おそれ|可能性|予定|工事|交通規制|規制に伴|事前案内|予告|見込み)/;
   const seriousPattern = /(運休|運転見合わせ|見合わせ|運行見合わせ|欠便|大幅な遅れ|大幅遅延|遅延発生|遅れが発生|迂回運行|運行休止|運行停止)/;
-  const normalPattern = /(通常運行|平常運行|正常運行|概ね通常|おおむね通常|現在、?平常どおり|現在、?通常どおり)/;
 
-  const seriousMatch = text.match(seriousPattern);
-  if (seriousMatch) {
-    const idx = text.indexOf(seriousMatch[0]);
-    const context = text.slice(Math.max(0, idx - 40), idx + 80);
+  let seriousFound = false;
+  let match;
+  const re = new RegExp(seriousPattern.source, "g");
 
-    if (uncertainPattern.test(context)) {
-      return {
-        level: "ok",
-        message: "明確な遅延・運休情報なし。お知らせ欄は必要時確認"
-      };
+  while ((match = re.exec(text)) !== null) {
+    const idx = match.index;
+    const context = text.slice(Math.max(0, idx - 50), idx + 100);
+    if (!uncertainPattern.test(context)) {
+      seriousFound = true;
+      break;
     }
+  }
 
+  if (seriousFound) {
     return {
       level: "alert",
       message: "遅延・運休などの可能性あり。公式ページで確認"
     };
   }
 
-  if (normalPattern.test(text)) {
+  if (normalCount > 0) {
     return {
       level: "ok",
       message: "通常運行"
@@ -237,15 +292,15 @@ async function checkSource(source) {
 
     if (source.id === "hiroden") {
       const routeResult = judgeHirodenPriorityRoutes(html);
-      const baseResult = checkKeywords(html, source.keywords);
-      const baseMessage = baseResult.found.length
-        ? `要確認キーワードあり：${baseResult.found.join("、")}`
+      const keywordResult = checkKeywords(html, source.keywords);
+      const baseMessage = keywordResult.found.length
+        ? `要確認キーワードあり：${keywordResult.found.slice(0, 4).join("、")}`
         : "取得OK";
 
       return {
         label: source.label,
         url: source.url,
-        level: routeResult.level === "alert" ? "alert" : baseResult.level,
+        level: routeResult.level === "alert" ? "alert" : keywordResult.level,
         message: `${routeResult.message}｜全体：${baseMessage}`
       };
     }
