@@ -1,4 +1,4 @@
-// update-status.js v42 display-tune: JMA text, JR badge hints, airport normal
+// update-status.js v44: JMA text, airport wording fix, normal messages do not self-trigger warning
 // 広島市タクシーダッシュボード：本日の自動巡回メモ生成
 // Node.js 20+ / GitHub Actions
 //
@@ -29,7 +29,7 @@ const URLS = {
   sanfrecce: 'https://www.sanfrecce.co.jp/matches/results',
 };
 
-const USER_AGENT = 'Mozilla/5.0 GitHubActions HiroshimaTaxiDashboard/41.0';
+const USER_AGENT = 'Mozilla/5.0 GitHubActions HiroshimaTaxiDashboard/44.0';
 
 function nowIsoJst() {
   return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tokyo' }).replace(' ', 'T') + '+09:00';
@@ -138,10 +138,11 @@ function makeItem(name, memoBody, status = '確認', source = '') {
   const body = String(memoBody || '確認してください');
   const memo = `${title}：${body}`;
 
-  // status だけでなく本文も見て、運休・遅延などは必ず warning 扱いにします。
+  // 「大きな欠航・遅延表示なし」のような正常文で、欠航/遅延という単語だけに反応しないようにする。
+  const normalMessage = /平常|大きな乱れ情報なし|表示なし|検出なし|通常運行|通常通り|運行情報はありません/.test(`${status} ${body}`);
   const combined = `${status} ${title} ${body}`;
-  const level = levelForStatus(combined);
-  const badge = badgeForStatus(combined);
+  let level = normalMessage ? 'ok' : levelForStatus(combined);
+  const badge = level === 'error' ? 'NG' : level === 'warning' ? '注意' : 'OK';
   const statusCode = statusCodeForLevel(level);
   const statusLabel = statusLabelForLevel(level);
   const isOk = level === 'ok';
@@ -531,7 +532,7 @@ async function getAirportStatus() {
     if (found.length) {
       return makeItem(name, `${[...new Set(found)].join('・')}の表示あり。詳細は公式フライト情報を確認`, '要確認', URLS.airportDomesticDepartures);
     }
-    return makeItem(name, '大きな欠航・遅延表示なし想定。空港送迎前は公式フライト情報を確認', '平常', URLS.airportDomesticDepartures);
+    return makeItem(name, '平常・大きな乱れ情報なし。空港送迎前は公式フライト情報を確認', '平常運転', URLS.airportDomesticDepartures);
   } catch (e) {
     return errorItem(name, e, URLS.airportDomesticDepartures);
   }
