@@ -1,34 +1,34 @@
 {
-  "updated_at": "2026-07-06T14:07:48+09:00",
+  "updated_at": "2026-07-06T14:13:52+09:00",
   "items": [
     {
       "name": "山陽線",
-      "status": "要確認",
-      "memo": "山陽線：山陽線 列車走行位置 順次運転見合わせ 再開見込み 14時00分 区間 海田市 ～ 岩国 原因 人と接触 07月06日13時45分更新 詳細 一部列車運休・遅延 区間 三原 ～ 海田市 原因 倒木 07月06日14時05分更新 詳細 小野田線（長門本山方面） 運転見合わせ 再開見込み 18時00分 区間 雀田 ～ 長門本山 原因 倒木 07月06日12時05分更新 詳細 連絡私鉄運行情報 広島電鉄 山陰地区 遅延あり 特急列車の遅れや運転取り止めについては、特急列車カテゴリをご覧ください。 木次線 一部列車遅延 区間 木次 ～ 出雲横田 原因 落石 07月06日13時50分更新 詳細 運行情報履歴 サービス概要 利用規約 よくあるご質問 関連リンク JRおでかけネット JR西日本ホームページ 安全・安定輸送に関する取り組み 他社運行情報 JR北海道運行情報 JR東日本運行情報（北陸新幹線等） JR東海運行情報（東海道新幹線等） JR四国運行情報 JR九州運行情報（九州新幹線等） JRサイバーステーション（新幹線運転情報等） Copyright © WEST JAPAN RAILWAY COMPANY All RIGHTS RESERVED. このサイトに掲載されている情報はJR西日本が提供しております。",
+      "status": "平常運転",
+      "memo": "山陽線：平常運転",
       "source": "https://trafficinfo.westjr.co.jp/chugoku.html",
-      "updated_at": "2026-07-06T14:07:47+09:00"
+      "updated_at": "2026-07-06T14:13:52+09:00"
     },
     {
       "name": "呉線",
       "status": "平常運転",
       "memo": "呉線：平常運転",
       "source": "https://trafficinfo.westjr.co.jp/chugoku.html",
-      "updated_at": "2026-07-06T14:07:48+09:00"
+      "updated_at": "2026-07-06T14:13:52+09:00"
     },
     {
       "name": "可部線",
       "status": "平常運転",
       "memo": "可部線：平常運転",
       "source": "https://trafficinfo.westjr.co.jp/chugoku.html",
-      "updated_at": "2026-07-06T14:07:48+09:00"
+      "updated_at": "2026-07-06T14:13:52+09:00"
     },
     {
       "name": "芸備線",
       "status": "平常運転",
       "memo": "芸備線：平常運転",
       "source": "https://trafficinfo.westjr.co.jp/chugoku.html",
-      "updated_at": "2026-07-06T14:07:48+09:00"
+      "updated_at": "2026-07-06T14:13:52+09:00"
     }
   ],
-  "debug_note": "v34 JR debug standalone. Merge getJrStatuses()/extractLineStatus() into existing update-status.js after verification."
+  "debug_note": "v35 JR boundary parser standalone. It stops a target route at the next JR route/section/footer word."
 }
