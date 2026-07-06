@@ -1,34 +1,34 @@
 {
-  "updated_at": "2026-07-06T14:13:52+09:00",
+  "updated_at": "2026-07-06T14:48:17+09:00",
   "items": [
     {
       "name": "山陽線",
-      "status": "平常運転",
-      "memo": "山陽線：平常運転",
+      "status": "要確認",
+      "memo": "山陽線：山陽線 一部列車運休・遅延 区間 海田市 ～ 岩国 原因 人と接触 07月06日14時05分更新 ／ 山陽線 一部列車運休・遅延 ／ 山陽線 一部列車運休・遅延 区間 三原 ～ 海田市 原因 倒木 07月06日14時05分更新",
       "source": "https://trafficinfo.westjr.co.jp/chugoku.html",
-      "updated_at": "2026-07-06T14:13:52+09:00"
+      "updated_at": "2026-07-06T14:48:17+09:00"
     },
     {
       "name": "呉線",
-      "status": "平常運転",
-      "memo": "呉線：平常運転",
+      "status": "要確認",
+      "memo": "呉線：呉線 遅延あり 列車に遅れが出ています。 07月06日14時45分更新",
       "source": "https://trafficinfo.westjr.co.jp/chugoku.html",
-      "updated_at": "2026-07-06T14:13:52+09:00"
+      "updated_at": "2026-07-06T14:48:17+09:00"
     },
     {
       "name": "可部線",
       "status": "平常運転",
       "memo": "可部線：平常運転",
       "source": "https://trafficinfo.westjr.co.jp/chugoku.html",
-      "updated_at": "2026-07-06T14:13:52+09:00"
+      "updated_at": "2026-07-06T14:48:17+09:00"
     },
     {
       "name": "芸備線",
       "status": "平常運転",
       "memo": "芸備線：平常運転",
       "source": "https://trafficinfo.westjr.co.jp/chugoku.html",
-      "updated_at": "2026-07-06T14:13:52+09:00"
+      "updated_at": "2026-07-06T14:48:17+09:00"
     }
   ],
-  "debug_note": "v35 JR boundary parser standalone. It stops a target route at the next JR route/section/footer word."
+  "debug_note": "v36 JR linewise parser standalone. It extracts a route block by rendered text lines and stops at the next route/footer line."
 }
