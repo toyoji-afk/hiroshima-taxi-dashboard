@@ -194,41 +194,77 @@ async function checkWeather() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
-    const weatherSeries = findAreaTimeSeries(data, ["広島", "南部"]);
-    const popSeries = (() => {
-      for (const block of data) {
-        for (const ts of block.timeSeries || []) {
-          for (const area of ts.areas || []) {
-            if (area.pops && (area.area?.name?.includes("広島") || area.area?.name?.includes("南部"))) {
-              return { timeSeries: ts, area };
+    // 気象庁JSONは時系列が複数に分かれているため、
+    // 「今日」の先頭データだけを使う。明日の概況は表示しない。
+    const firstBlock = data[0];
+    const timeSeries = firstBlock?.timeSeries || [];
+
+    const weatherTs = timeSeries.find(ts =>
+      (ts.areas || []).some(area =>
+        area.weathers && (area.area?.name?.includes("広島") || area.area?.name?.includes("南部"))
+      )
+    );
+
+    const weatherArea = weatherTs?.areas?.find(area =>
+      area.weathers && (area.area?.name?.includes("広島") || area.area?.name?.includes("南部"))
+    );
+
+    const popTs = timeSeries.find(ts =>
+      (ts.areas || []).some(area =>
+        area.pops && (area.area?.name?.includes("広島") || area.area?.name?.includes("南部"))
+      )
+    );
+
+    const popArea = popTs?.areas?.find(area =>
+      area.pops && (area.area?.name?.includes("広島") || area.area?.name?.includes("南部"))
+    );
+
+    // 気温は2つ目のブロックにあることが多い。
+    // 広島エリアの今日の最高気温らしき値だけを拾う。
+    let maxTemp = "";
+    for (const block of data) {
+      for (const ts of block.timeSeries || []) {
+        for (const area of ts.areas || []) {
+          const areaName = area.area?.name || "";
+          if ((areaName.includes("広島") || areaName.includes("南部")) && area.temps) {
+            const nums = area.temps
+              .map(v => Number(v))
+              .filter(v => Number.isFinite(v));
+            if (nums.length) {
+              maxTemp = String(Math.max(...nums));
+              break;
             }
           }
         }
+        if (maxTemp) break;
       }
-      return null;
-    })();
-
-    let weatherText = "";
-    if (weatherSeries?.area?.weathers?.length) {
-      weatherText = weatherSeries.area.weathers.slice(0, 2).join(" → ");
+      if (maxTemp) break;
     }
 
+    const todayWeather = weatherArea?.weathers?.[0] || "";
+
+    // popsは発表時刻により 00-06 / 06-12 / 12-18 / 18-24 など。
+    // 乗務前チェック用に、前半・後半の目安としてまとめる。
+    const pops = (popArea?.pops || []).filter(v => v !== "");
     let popText = "";
-    if (popSeries?.area?.pops?.length) {
-      const pops = popSeries.area.pops.slice(0, 4).filter(v => v !== "");
-      if (pops.length) {
-        const first = pops[0] ?? "-";
-        const second = pops[Math.min(1, pops.length - 1)] ?? "-";
-        const third = pops[Math.min(2, pops.length - 1)] ?? "";
-        if (third && third !== second) {
-          popText = `降水確率 ${first}% → ${second}% → ${third}%`;
-        } else {
-          popText = `降水確率 午前目安 ${first}%、午後目安 ${second}%`;
-        }
-      }
+    if (pops.length >= 4) {
+      const morningVals = pops.slice(0, 2).map(Number).filter(Number.isFinite);
+      const afternoonVals = pops.slice(2, 4).map(Number).filter(Number.isFinite);
+      const morning = morningVals.length ? Math.max(...morningVals) : pops[0];
+      const afternoon = afternoonVals.length ? Math.max(...afternoonVals) : pops[2];
+      popText = `降水確率 午前目安 ${morning}%、午後目安 ${afternoon}%`;
+    } else if (pops.length >= 2) {
+      popText = `降水確率 午前目安 ${pops[0]}%、午後目安 ${pops[1]}%`;
+    } else if (pops.length === 1) {
+      popText = `降水確率 ${pops[0]}%`;
     }
 
-    const msg = [weatherText, popText].filter(Boolean).join("／") || "天気情報を取得。詳細は気象庁で確認";
+    const tempText = maxTemp ? `最高気温 ${maxTemp}℃` : "";
+    const msg = [
+      todayWeather ? `今日 ${todayWeather}` : "",
+      popText,
+      tempText
+    ].filter(Boolean).join("／") || "今日の天気情報を取得。詳細は気象庁で確認";
 
     const level = /雨|雪|雷|荒/.test(msg) || /([6-9]0|100)%/.test(msg) ? "alert" : "ok";
 
@@ -247,7 +283,6 @@ async function checkWeather() {
     };
   }
 }
-
 async function main() {
   const items = [];
 
