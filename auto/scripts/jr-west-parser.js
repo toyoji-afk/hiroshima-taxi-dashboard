@@ -1,4 +1,4 @@
-// jr-west-parser.js v38
+// jr-west-parser.js v44
 // JR西日本 中国エリア：山陽線・呉線・可部線・芸備線 抽出モジュール
 // Node.js 20+ / GitHub Actions
 // Requires Playwright in workflow:
@@ -87,7 +87,7 @@ function htmlToText(html) {
 async function fetchStaticHtml() {
   const res = await fetch(JR_URL, {
     headers: {
-      'user-agent': 'Mozilla/5.0 GitHubActions taxi-dashboard v38',
+      'user-agent': 'Mozilla/5.0 GitHubActions taxi-dashboard v44',
       'accept-language': 'ja,en-US;q=0.9,en;q=0.8'
     }
   });
@@ -103,7 +103,7 @@ async function fetchRenderedText() {
     const { chromium } = require('playwright');
     const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({
-      userAgent: 'Mozilla/5.0 GitHubActions taxi-dashboard v38',
+      userAgent: 'Mozilla/5.0 GitHubActions taxi-dashboard v44',
       locale: 'ja-JP'
     });
 
@@ -160,6 +160,22 @@ function hasStatusNearby(lines, idx, windowSize = 45) {
   return JR_STATUS_WORDS.some(w => chunk.includes(w));
 }
 
+function hasLineDetailMarker(lines, idx, targetLine, windowSize = 8) {
+  // JRの実障害ブロックは「路線名 → 列車走行位置 → 状況」の並びになりやすい。
+  // メニュー側の路線名を拾うと、後続の別路線障害を誤吸収するため、ここで除外する。
+  const chunk = lines.slice(idx, idx + windowSize).join(' ');
+  if (!chunk.includes('列車走行位置')) return false;
+
+  // 次のJR路線・フッターまでの範囲内に異常語があるかを見る。
+  const local = [];
+  for (let i = idx; i < Math.min(lines.length, idx + 35); i++) {
+    if (i > idx && isStopLine(lines[i], targetLine)) break;
+    local.push(lines[i]);
+  }
+  const localText = local.join(' ');
+  return JR_STATUS_WORDS.some(w => localText.includes(w));
+}
+
 function extractTargetBlock(text, targetLine) {
   const lines = normalizeLines(text);
   const candidateIndexes = [];
@@ -172,7 +188,10 @@ function extractTargetBlock(text, targetLine) {
   }
 
   if (!candidateIndexes.length) return '';
-  const start = candidateIndexes.find(i => hasStatusNearby(lines, i)) ?? candidateIndexes[0];
+
+  // メニューや路線一覧に出てくる路線名ではなく、実際の運行情報ブロックを優先。
+  const start = candidateIndexes.find(i => hasLineDetailMarker(lines, i, targetLine));
+  if (start === undefined) return '';
 
   const out = [];
   for (let i = start; i < lines.length; i++) {
