@@ -839,6 +839,62 @@ async function checkWeather() {
     };
   }
 }
+
+function getTodayTokensJst() {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric"
+  }).formatToParts(now);
+
+  const y = parts.find(p => p.type === "year")?.value;
+  const m = parts.find(p => p.type === "month")?.value;
+  const d = parts.find(p => p.type === "day")?.value;
+
+  return [
+    `${y}/${m}/${d}`,
+    `${y}年${m}月${d}日`,
+    `${m}/${d}`,
+    `${m}月${d}日`
+  ];
+}
+
+async function checkEventSource(source) {
+  try {
+    const html = await fetchText(source.url);
+    const text = stripHtml(html).replace(/\s+/g, " ");
+    const todayTokens = getTodayTokensJst();
+
+    const hasToday = todayTokens.some(token => text.includes(token));
+    const hasVenue = (source.venueKeywords || []).some(keyword => text.includes(keyword));
+
+    if (hasToday && hasVenue) {
+      return {
+        label: source.label,
+        url: source.url,
+        level: "alert",
+        message: "本日広島開催の可能性あり。公式ページで確認"
+      };
+    }
+
+    return {
+      label: source.label,
+      url: source.url,
+      level: "ok",
+      message: "本日広島開催なし"
+    };
+  } catch (error) {
+    return {
+      label: source.label,
+      url: source.url,
+      level: "error",
+      message: "取得できませんでした。公式ページで確認"
+    };
+  }
+}
+
 async function main() {
   const items = [];
 
