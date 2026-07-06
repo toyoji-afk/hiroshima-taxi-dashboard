@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-07-06T00:23:23.543Z",
-  "updatedAtJst": "2026/07/06(月) 09:23",
+  "updatedAt": "2026-07-06T00:30:33.109Z",
+  "updatedAtJst": "2026/07/06(月) 09:30",
   "scheduleNote": "JST 00:00 / 06:00 / 12:00 / 18:00 目安で更新",
   "items": [
     {
@@ -32,6 +32,18 @@
       "url": "https://www.hiroden.co.jp/traffic/info/",
       "level": "alert",
       "message": "要確認キーワードあり：遅れ、遅延"
+    },
+    {
+      "label": "広島バス 路線バス",
+      "url": "https://hirobus-info-rosen.jp/",
+      "level": "ok",
+      "message": "明確な遅延・運休情報なし。詳細は公式ページで確認"
+    },
+    {
+      "label": "広島交通 路線バス",
+      "url": "https://www.hiroko-group.co.jp/kotsu/rosen_unkou.htm",
+      "level": "ok",
+      "message": "明確な遅延・運休情報なし。詳細は公式ページで確認"
     },
     {
       "label": "広島空港",
