@@ -477,7 +477,42 @@
       .bottom-nav { display: none; }
       .wrap { padding-bottom: 44px; }
     }
-  </style>
+  
+    /* v20 compact layout */
+    .link-card p,
+    .quick-card p,
+    .card p.desc,
+    .card .desc,
+    .desc,
+    .card-desc {
+      display: none !important;
+    }
+    .check-btn,
+    .checked-btn,
+    .reset-btn,
+    .copy-url-btn,
+    [data-action="check"],
+    [data-action="reset"],
+    [data-action="copy-url"] {
+      display: none !important;
+    }
+    .link-card,
+    .quick-card,
+    .card {
+      padding-top: 12px !important;
+      padding-bottom: 12px !important;
+    }
+    .card h3,
+    .link-card h3,
+    .quick-card h3 {
+      margin-bottom: 4px !important;
+    }
+    .actions,
+    .footer-actions {
+      gap: 8px !important;
+    }
+    
+</style>
 </head>
 <body>
   <div class="wrap">
@@ -493,7 +528,6 @@
 
     <div class="top-section-title">
       <span>まず確認する4項目</span>
-      <small>道路・鉄道・市内交通</small>
     </div>
 
     <div class="quick">
@@ -522,8 +556,6 @@
         <a class="link" href="https://www.pref.hiroshima.lg.jp/site/police/"><span class="icon">👮</span><span><span class="name">広島県警察</span><span class="desc">交通規制・取締り・イベント時規制</span></span><span class="arrow">›</span></a>
       </div>
       <div class="checkrow">
-        <button class="check" data-check="road-main">道路確認済み</button>
-        <button class="check" data-check="road-camera">カメラ確認済み</button>
       </div>
     </section>
 
@@ -538,8 +570,6 @@
         <a class="link" href="https://www.h-buscenter.com/"><span class="icon">🏢</span><span><span class="name">広島バスセンター</span><span class="desc">バス案内・お知らせ全般</span></span><span class="arrow">›</span></a>
       </div>
       <div class="checkrow">
-        <button class="check" data-check="rail">鉄道確認済み</button>
-        <button class="check" data-check="bus">バス確認済み</button>
       </div>
     </section>
 
@@ -553,8 +583,6 @@
         <a class="link" href="https://www.hij.airport.jp/access/"><span class="icon">🚕</span><span><span class="name">広島空港 交通アクセス</span><span class="desc">空港連絡バス・車・駐車場</span></span><span class="arrow">›</span></a>
       </div>
       <div class="checkrow">
-        <button class="check" data-check="airport-dep">出発確認済み</button>
-        <button class="check" data-check="airport-arr">到着確認済み</button>
       </div>
     </section>
 
@@ -570,8 +598,6 @@
         <a class="link" href="https://dive-hiroshima.com/"><span class="icon">⛩️</span><span><span class="name">Dive! Hiroshima</span><span class="desc">観光・季節イベント・お客様との会話ネタ</span></span><span class="arrow">›</span></a>
       </div>
       <div class="checkrow">
-        <button class="check" data-check="sports">スポーツ確認済み</button>
-        <button class="check" data-check="event">イベント確認済み</button>
       </div>
     </section>
 
@@ -611,9 +637,7 @@
     </div>
 
     <div class="footer-actions">
-      <button id="resetChecks">今日のチェックをリセット</button>
       <button id="copyMemo">メモをコピー</button>
-      <button id="copyUrl">ページURLをコピー</button>
       <a class="toplink" href="#">ページ先頭へ戻る</a>
       <div class="subnote">
         <strong>使い方：</strong>乗務前や休憩中に、上から順に確認。公式サイトで最終確認し、確認後は「チェック済み」を押すと、この端末に今日の状態が保存されます。<br>
@@ -622,7 +646,7 @@
     </div>
 
     <div class="footer">
-      個人用ダッシュボードです。道路・運行・フライト等の最終確認は必ず各公式サイトで行ってください。手動リンク版：ロゴアイコン対応版。
+      個人用ダッシュボードです。道路・運行・フライト等の最終確認は必ず各公式サイトで行ってください。手動リンク版：第20版・コンパクト表示。
     </div>
   </div>
 
@@ -643,9 +667,6 @@
 
     const storagePrefix = `hiroshimaTaxiDash:${todayKey}:`;
     const memoKey = `hiroshimaTaxiDash:memo:${todayKey}`;
-
-    document.querySelectorAll("[data-check]").forEach(btn => {
-      const key = storagePrefix + btn.dataset.check;
       if (localStorage.getItem(key) === "1") {
         btn.classList.add("done");
         btn.textContent = "✓ " + btn.textContent.replace(/^✓\s*/, "");
@@ -672,8 +693,6 @@
 
     document.getElementById("resetChecks").addEventListener("click", () => {
       if (!confirm("今日のチェック状態をリセットしますか？メモは残ります。")) return;
-      document.querySelectorAll("[data-check]").forEach(btn => {
-        localStorage.removeItem(storagePrefix + btn.dataset.check);
         btn.classList.remove("done");
         btn.textContent = btn.textContent.replace(/^✓\s*/, "");
       });
@@ -683,7 +702,7 @@
     document.getElementById("copyUrl").addEventListener("click", async () => {
       try {
         await navigator.clipboard.writeText(canonicalUrl);
-        alert("ページURLをコピーしました。");
+        alert("しました。");
       } catch (e) {
         alert("コピーできませんでした。URL欄を長押しして選択コピーしてください。");
       }
