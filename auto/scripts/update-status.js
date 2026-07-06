@@ -1,4 +1,4 @@
-// update-status.js v39 final
+// update-status.js v40 dashboard-compatible
 // 広島市タクシーダッシュボード：本日の自動巡回メモ生成
 // Node.js 20+ / GitHub Actions
 //
@@ -28,7 +28,7 @@ const URLS = {
   sanfrecce: 'https://www.sanfrecce.co.jp/matches/results',
 };
 
-const USER_AGENT = 'Mozilla/5.0 GitHubActions HiroshimaTaxiDashboard/39.0';
+const USER_AGENT = 'Mozilla/5.0 GitHubActions HiroshimaTaxiDashboard/40.0';
 
 function nowIsoJst() {
   return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tokyo' }).replace(' ', 'T') + '+09:00';
@@ -96,16 +96,99 @@ function htmlToText(html) {
     .replace(/&quot;/g, '"'));
 }
 
+function slugifyName(name) {
+  return String(name || '')
+    .replace(/\s+/g, '-')
+    .replace(/[：:]/g, '-')
+    .trim();
+}
+
+function badgeForStatus(status) {
+  const s = String(status || '');
+  if (/取得失敗|失敗|error|ERROR/i.test(s)) return 'NG';
+  if (/要確認|注意|遅延|運休|見合わせ|欠航|warning|WARN/i.test(s)) return '注意';
+  return 'OK';
+}
+
+function levelForStatus(status) {
+  const s = String(status || '');
+  if (/取得失敗|失敗|error|ERROR/i.test(s)) return 'error';
+  if (/要確認|注意|遅延|運休|見合わせ|欠航|warning|WARN/i.test(s)) return 'warning';
+  return 'ok';
+}
+
+// auto/index.html 側の古い表示ロジックにも合うよう、同じ内容を複数フィールドに入れます。
 function makeItem(name, memoBody, status = '確認', source = '') {
+  const checked = nowIsoJst();
+  const title = String(name || '情報源');
+  const body = String(memoBody || '確認してください');
+  const memo = `${title}：${body}`;
+  const badge = badgeForStatus(status);
+  const level = levelForStatus(status);
+  const id = slugifyName(title);
+
   return {
-    name,
-    title: name,
+    id,
+    key: id,
+    name: title,
+    title,
+    label: title,
+    display_name: title,
+    displayName: title,
+
     status,
-    memo: `${name}：${memoBody}`,
+    state: status,
+    badge,
+    level,
+    severity: level,
+
+    memo,
+    message: body,
+    text: body,
+    detail: body,
+    details: body,
+    summary: body,
+    description: body,
+    note: body,
+    body,
+    content: body,
+    value: body,
+
     url: source,
+    link: source,
+    href: source,
     source,
-    updated_at: nowIsoJst(),
+    source_url: source,
+    sourceUrl: source,
+    source_label: '情報源',
+    sourceLabel: '情報源',
+    source_name: '情報源',
+    sourceName: '情報源',
+
+    updated_at: checked,
+    updatedAt: checked,
+    checked_at: checked,
+    checkedAt: checked,
   };
+}
+
+function normalizeDashboardItem(item) {
+  if (!item || typeof item !== 'object') return item;
+
+  const name = item.name || item.title || item.label || item.display_name || item.displayName || '情報源';
+  const status = item.status || item.state || '確認';
+
+  let body = item.message || item.text || item.detail || item.details || item.summary || item.description || item.note || item.body || item.content || item.value || '';
+  if (!body && item.memo) {
+    body = String(item.memo).replace(new RegExp(`^${String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\s*[：:]\s*`), '');
+  }
+  if (!body) body = '確認してください';
+
+  const source = item.url || item.link || item.href || item.source_url || item.sourceUrl || item.source || '';
+  const out = makeItem(name, body, status, source);
+
+  // 元の項目が持っている追加フィールドは残しつつ、表示互換フィールドを優先します。
+  return { ...item, ...out };
 }
 
 function normalItem(name, source = '') {
@@ -406,13 +489,29 @@ async function main() {
     airportStatus,
     carpStatus,
     sanfrecceStatus,
-  ].filter(Boolean);
+  ].filter(Boolean).map(normalizeDashboardItem);
+
+  const checkedAt = nowIsoJst();
+  const memo = items.map(x => x.memo || `${x.name || x.title || x.label}：${x.message || x.text || x.detail || x.status || ''}`).join('\n');
 
   const payload = {
-    updated_at: nowIsoJst(),
-    generated_at: nowIsoJst(),
+    updated_at: checkedAt,
+    updatedAt: checkedAt,
+    generated_at: checkedAt,
+    generatedAt: checkedAt,
+    checked_at: checkedAt,
+    checkedAt: checkedAt,
+
+    // 新旧どちらの auto/index.html でも読めるように同じ配列を複数キーで保持します。
     items,
-    memo: items.map(x => x.memo || `${x.name}：${x.status || ''}`).join('\n'),
+    checks: items,
+    statuses: items,
+    results: items,
+    data: items,
+
+    memo,
+    auto_memo: memo,
+    autoMemo: memo,
   };
 
   fs.writeFileSync(OUT_PATH, JSON.stringify(payload, null, 2), 'utf8');
