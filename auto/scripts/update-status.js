@@ -1,4 +1,4 @@
-// update-status.js v41 JMA-weather-and-badge-fix
+// update-status.js v42 display-tune: JMA text, JR badge hints, airport normal
 // 広島市タクシーダッシュボード：本日の自動巡回メモ生成
 // Node.js 20+ / GitHub Actions
 //
@@ -156,19 +156,25 @@ function makeItem(name, memoBody, status = '確認', source = '') {
     display_name: title,
     displayName: title,
 
-    // 新旧いろいろな auto/index.html に合わせるため、コード値と日本語表示値の両方を持たせます。
-    status: statusCode,
-    state: statusCode,
+    // 画面側の古い判定に合わせ、status/state は日本語寄りに戻します。
+    // コード値は status_code/statusCode に保持します。
+    status: level === 'warning' ? '注意' : statusLabel,
+    state: level === 'warning' ? '注意' : statusLabel,
+    result: level === 'warning' ? '注意' : statusLabel,
     status_code: statusCode,
     statusCode,
-    status_label: statusLabel,
-    statusLabel,
+    status_label: level === 'warning' ? '注意' : statusLabel,
+    statusLabel: level === 'warning' ? '注意' : statusLabel,
     original_status: status,
     originalStatus: status,
 
     badge,
     badge_text: badge,
     badgeText: badge,
+    badge_label: badge,
+    badgeLabel: badge,
+    label_badge: badge,
+    labelBadge: badge,
     level,
     severity: level,
     type: level,
@@ -311,21 +317,14 @@ async function getWeatherStatus() {
     const tempArea = pickArea(tempTs.areas, ['広島', '南部', '広島県南部']);
     const tempInfo = buildTempInfo(tempTs.timeDefines || [], tempArea || {}, todayDate);
 
-    const caution = [];
-    if (/雨|雷|雪|荒れ|強い|激しい/.test(weather)) caution.push('天候注意');
-    const futurePops = popParts.map(p => Number(p.percent)).filter(n => !Number.isNaN(n));
-    const maxPop = futurePops.length ? Math.max(...futurePops) : null;
-    if (maxPop != null && maxPop >= 50) caution.push(`降水確率${maxPop}%`);
-
     const body = [
       weather,
       tempInfo ? tempInfo : '',
       popParts.length ? `降水確率 ${popParts.map(p => `${p.label}${p.percent}%`).join('／')}` : '',
-      caution.length ? `注意：${caution.join('・')}` : '',
     ].filter(Boolean).join('　');
 
-    const status = caution.length ? '要確認' : '平常';
-    return makeItem(name, body || '気象庁の天気予報を確認', status, source);
+    // 天気は本文に降水確率まで出せば十分なので、雨・雷でも取得成功ならOK扱いにします。
+    return makeItem(name, body || '気象庁の天気予報を確認', '平常', source);
   } catch (e) {
     return errorItem(name, e, source);
   }
@@ -532,7 +531,7 @@ async function getAirportStatus() {
     if (found.length) {
       return makeItem(name, `${[...new Set(found)].join('・')}の表示あり。詳細は公式フライト情報を確認`, '要確認', URLS.airportDomesticDepartures);
     }
-    return makeItem(name, '大きな欠航・遅延表示なし想定。空港送迎前は公式フライト情報を確認', '確認', URLS.airportDomesticDepartures);
+    return makeItem(name, '大きな欠航・遅延表示なし想定。空港送迎前は公式フライト情報を確認', '平常', URLS.airportDomesticDepartures);
   } catch (e) {
     return errorItem(name, e, URLS.airportDomesticDepartures);
   }
