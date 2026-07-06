@@ -25,6 +25,7 @@ const URLS = {
   airportInternationalDepartures: 'https://www.hij.airport.jp/flight/flight_id.html',
   airportInternationalArrivals: 'https://www.hij.airport.jp/flight/flight_ia.html',
   carp: 'https://www.ticket.carp.co.jp/calendar/',
+  npbMonthly: 'https://npb.jp/games/',
   sanfrecce: 'https://www.sanfrecce.co.jp/matches/results',
 };
 
@@ -54,6 +55,9 @@ function todayJstParts() {
     mdKanji: `${Number(pick('month'))}月${Number(pick('day'))}日`,
     ymdSlash: `${pick('year')}/${Number(pick('month'))}/${Number(pick('day'))}`,
     ymdHyphen: `${pick('year')}-${pick('month')}-${pick('day')}`,
+    yyyymm: `${pick('year')}${pick('month')}`,
+    mm: pick('month'),
+    dd: pick('day'),
   };
 }
 
@@ -882,6 +886,87 @@ async function getAirportStatus() {
   }
 }
 
+
+function buildNpbMonthlyUrl(today = todayJstParts()) {
+  // NPB公式の月別詳細ページ。例: https://npb.jp/games/2026/schedule_07_detail.html
+  return `${URLS.npbMonthly}${today.year}/schedule_${today.mm}_detail.html`;
+}
+
+function extractDateSectionByNextDate(text, today = todayJstParts(), radius = 900) {
+  const t = compactText(text);
+  const day = Number(today.day);
+  const month = Number(today.month);
+  const datePatterns = [
+    `${month}/${day}`,
+    `${month}.${day}`,
+    `${month}月${day}日`,
+    today.ymdHyphen,
+    today.ymdSlash,
+  ];
+
+  const indexes = datePatterns
+    .map(p => t.indexOf(p))
+    .filter(i => i >= 0);
+
+  if (!indexes.length) return '';
+
+  const start = Math.min(...indexes);
+  const after = t.slice(start + 1);
+
+  // 次の日付らしい見出しまでを当日セクションにする。
+  const nextDate = after.search(/\b\d{1,2}[\/.]\d{1,2}(?:[（(][月火水木金土日][）)])?|\d{1,2}月\d{1,2}日/);
+  if (nextDate >= 0) {
+    return t.slice(start, start + 1 + nextDate).trim();
+  }
+  return t.slice(start, start + radius).trim();
+}
+
+function extractNpbCarpHomeGame(text, today = todayJstParts()) {
+  const section = extractDateSectionByNextDate(text, today, 1200);
+  if (!section) return null;
+
+  // NPB月別ページでは、7/7の下に「広島 - ヤクルト マツダスタジアム 18:00」のように並ぶ。
+  const hasHome = /広島\s*[-－ー]\s*[^ ]+/.test(section) &&
+    /マツダスタジアム|MAZDA|Zoom-Zoom|ズムスタ/.test(section);
+
+  if (!hasHome) return null;
+
+  const opponent = (section.match(/広島\s*[-－ー]\s*([^\s]+)\s+(?:マツダスタジアム|MAZDA|Zoom-Zoom|ズムスタ)/) || [])[1] ||
+    (section.match(/広島\s*[-－ー]\s*([^\s]+)/) || [])[1] || '';
+
+  const time = (section.match(/\b\d{1,2}:\d{2}\b/) || [])[0] || '';
+
+  return {
+    opponent: opponent.replace(/[|｜].*$/, '').trim(),
+    time,
+    section,
+  };
+}
+
+function extractSanfrecceTodayHomeGame(text, today = todayJstParts()) {
+  const t = compactText(text);
+  const month = Number(today.month);
+  const day = Number(today.day);
+
+  // サンフレッチェ公式は「8.8 土 19:15」のような試合カード。
+  // 日付が一致する試合カードだけを見る。ページ上の別日のHOME/試合詳細に反応しない。
+  const dateRegex = new RegExp(`(?:^|\\s)${month}[\\./]${day}\\s*(?:[月火水木金土日])?\\s+\\d{1,2}:\\d{2}`);
+  const m = t.match(dateRegex);
+  if (!m) return null;
+
+  const start = Math.max(0, m.index - 120);
+  const section = t.slice(start, m.index + 520);
+  const isHome = /HOME/.test(section) && /エディオンピースウイング広島|Ｅピース|Eピース/.test(section);
+  const isMatch = /明治安田|J1|Jリーグ|ルヴァン|天皇杯|試合詳細/.test(section);
+
+  if (!isHome || !isMatch) return null;
+
+  const time = (section.match(/\b\d{1,2}:\d{2}\b/) || [])[0] || '';
+  const opponent = (section.match(/(?:Image\s*)?([^\s]+)\s+(?:試合詳細|放映|DAZN)/) || [])[1] || '';
+
+  return { time, opponent, section };
+}
+
 function extractTodayWindow(text, radius = 220) {
   const today = todayJstParts();
   const t = compactText(text);
@@ -901,33 +986,59 @@ function extractTodayWindow(text, radius = 220) {
 
 async function getCarpStatus() {
   const name = 'カープ本拠地開催';
+  const today = todayJstParts();
+  const npbUrl = buildNpbMonthlyUrl(today);
+
   try {
-    const { text } = await fetchText(URLS.carp, 'carp');
-    const w = extractTodayWindow(text, 260);
-    const today = todayJstParts();
-    const hasToday = Boolean(w);
-    const isHome = /マツダ|MAZDA|Zoom-Zoom|ズムスタ|広島/.test(w) && /(\d{1,2}:\d{2}|試合|空席|詳細|スポンサードゲーム)/.test(w);
-    if (hasToday && isHome) {
-      const time = (w.match(/\b\d{1,2}:\d{2}\b/) || [])[0];
-      return makeItem(name, `本日${today.mdKanji} マツダスタジアム開催の可能性あり${time ? `（${time}）` : ''}。広島駅・球場周辺の混雑に注意`, '要確認', URLS.carp);
+    // カープ公式カレンダーは月ページや表示形式の揺れがあるため、
+    // 本拠地開催判定はNPB公式の月別詳細ページを主判定にする。
+    const { text } = await fetchText(npbUrl, 'npb-carp');
+    const game = extractNpbCarpHomeGame(text, today);
+
+    if (game) {
+      return makeItem(
+        name,
+        `本日${today.mdKanji} マツダスタジアム開催：広島－${game.opponent || '対戦相手確認'}${game.time ? `（${game.time}）` : ''}。広島駅・球場周辺の混雑に注意`,
+        '要確認',
+        npbUrl
+      );
     }
-    return makeItem(name, `本日${today.mdKanji}の本拠地開催は検出なし`, '平常', URLS.carp);
+
+    return makeItem(name, `本日${today.mdKanji}の本拠地開催は検出なし`, '平常', npbUrl);
   } catch (e) {
-    return errorItem(name, e, URLS.carp);
+    // NPB取得失敗時だけ、従来のカープ公式カレンダーにフォールバック。
+    try {
+      const { text } = await fetchText(URLS.carp, 'carp-fallback');
+      const w = extractTodayWindow(text, 320);
+      const isHome = Boolean(w) && /マツダ|MAZDA|Zoom-Zoom|ズムスタ/.test(w) && /(\d{1,2}:\d{2}|試合|空席|詳細|スポンサードゲーム)/.test(w);
+      if (isHome) {
+        const time = (w.match(/\b\d{1,2}:\d{2}\b/) || [])[0];
+        return makeItem(name, `本日${today.mdKanji} マツダスタジアム開催の可能性あり${time ? `（${time}）` : ''}。広島駅・球場周辺の混雑に注意`, '要確認', URLS.carp);
+      }
+      return makeItem(name, `本日${today.mdKanji}の本拠地開催は検出なし`, '平常', URLS.carp);
+    } catch (fallbackError) {
+      return errorItem(name, fallbackError, npbUrl);
+    }
   }
 }
 
 async function getSanfrecceStatus() {
   const name = 'サンフレッチェ広島開催';
+  const today = todayJstParts();
+
   try {
     const { text } = await fetchText(URLS.sanfrecce, 'sanfrecce');
-    const w = extractTodayWindow(text, 280);
-    const today = todayJstParts();
-    const isHome = /HOME|エディオンピースウイング|Ｅピース|Eピース|広島/.test(w) && /(\d{1,2}:\d{2}|試合詳細|明治安田|J1|ルヴァン|天皇杯)/.test(w);
-    if (w && isHome) {
-      const time = (w.match(/\b\d{1,2}:\d{2}\b/) || [])[0];
-      return makeItem(name, `本日${today.mdKanji} エディオンピースウイング広島開催の可能性あり${time ? `（${time}）` : ''}。紙屋町・基町周辺の混雑に注意`, '要確認', URLS.sanfrecce);
+    const game = extractSanfrecceTodayHomeGame(text, today);
+
+    if (game) {
+      return makeItem(
+        name,
+        `本日${today.mdKanji} エディオンピースウイング広島開催の可能性あり${game.time ? `（${game.time}）` : ''}。紙屋町・基町周辺の混雑に注意`,
+        '要確認',
+        URLS.sanfrecce
+      );
     }
+
     return makeItem(name, `本日${today.mdKanji}の本拠地開催は検出なし`, '平常', URLS.sanfrecce);
   } catch (e) {
     return errorItem(name, e, URLS.sanfrecce);
