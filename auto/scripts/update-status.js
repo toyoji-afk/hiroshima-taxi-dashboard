@@ -1,4 +1,4 @@
-// update-status.js v50: Open-Meteo Hiroshima-center weather + Hiroden/JR stable version
+// update-status.js v51: Open-Meteo Hiroshima-center weather + Hiroden cache/update-time fix + JR stable version
 // 広島市タクシーダッシュボード：本日の自動巡回メモ生成
 // Node.js 20+ / GitHub Actions
 //
@@ -28,7 +28,7 @@ const URLS = {
   sanfrecce: 'https://www.sanfrecce.co.jp/matches/results',
 };
 
-const USER_AGENT = 'Mozilla/5.0 GitHubActions HiroshimaTaxiDashboard/50.0';
+const USER_AGENT = 'Mozilla/5.0 GitHubActions HiroshimaTaxiDashboard/51.0';
 
 function nowIsoJst() {
   return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tokyo' }).replace(' ', 'T') + '+09:00';
@@ -257,11 +257,15 @@ async function fetchText(url, label, timeoutMs = 30000) {
       headers: {
         'user-agent': USER_AGENT,
         'accept-language': 'ja,en-US;q=0.9,en;q=0.8',
+        'cache-control': 'no-cache, no-store, must-revalidate',
+        'pragma': 'no-cache',
+        'expires': '0',
       },
       signal: controller.signal,
+      cache: 'no-store',
     });
     const body = await res.text();
-    console.log(`[fetch] ${label}: status=${res.status} length=${body.length}`);
+    console.log(`[fetch] ${label}: status=${res.status} length=${body.length} url=${url}`);
     writeDebug(`${label}.html`, body);
     const text = htmlToText(body);
     writeDebug(`${label}.txt`, text);
@@ -571,6 +575,12 @@ function excerptAbnormal(text, maxLen = 110) {
   return t.slice(i, i + maxLen).trim();
 }
 
+
+function addCacheBuster(url) {
+  const sep = String(url).includes('?') ? '&' : '?';
+  return `${url}${sep}_=${Date.now()}`;
+}
+
 function detectHirodenCategory(blockText) {
   const t = compactText(blockText);
 
@@ -623,6 +633,25 @@ function normalizeHirodenRouteName(routeText, category = '') {
 
   // バス系統など、最低限読める範囲で返す。
   return r.slice(0, 42).trim();
+}
+
+function extractHirodenLatestOfficialUpdateTime(text) {
+  const raw = compactText(text);
+  const currentIdx = raw.indexOf('現在の運行情報');
+  const body = currentIdx >= 0 ? raw.slice(currentIdx) : raw;
+  const detailIdx = body.indexOf('運行情報の詳細は以下の通りです');
+  const target = detailIdx >= 0 ? body.slice(0, detailIdx) : body;
+
+  const matches = [...target.matchAll(/20\d{2}\/\d{1,2}\/\d{1,2}\s+(\d{1,2}:\d{2})\s+更新/g)]
+    .map(m => m[1]);
+  if (!matches.length) return '';
+  return matches.sort().slice(-1)[0];
+}
+
+function appendHirodenOfficialUpdate(text, officialUpdateTime) {
+  if (!officialUpdateTime) return text;
+  if (String(text || '').includes('広電公式')) return text;
+  return `${text}（広電公式 ${officialUpdateTime}更新）`;
 }
 
 function makeHirodenOperationText(items) {
@@ -739,10 +768,21 @@ function extractHirodenOperations(text) {
 async function getHirodenStatus() {
   const name = '広島電鉄';
   try {
-    const { text } = await fetchText(URLS.hiroden, 'hiroden');
+    // 広電は解除済み情報が残って見えると実務上まぎらわしいため、
+    // GitHub Actions/CDN/中間キャッシュをできるだけ避けて毎回取り直します。
+    const fetchUrl = addCacheBuster(URLS.hiroden);
+    const { text } = await fetchText(fetchUrl, 'hiroden');
+    const officialUpdateTime = extractHirodenLatestOfficialUpdateTime(text);
     const ops = extractHirodenOperations(text);
-    if (ops) return makeItem(name, ops, '要確認', URLS.hiroden);
-    return normalItem(name, URLS.hiroden);
+
+    if (ops) {
+      return makeItem(name, appendHirodenOfficialUpdate(ops, officialUpdateTime), '要確認', URLS.hiroden);
+    }
+
+    const normalBody = officialUpdateTime
+      ? `平常・大きな乱れ情報なし（広電公式 ${officialUpdateTime}更新）`
+      : '平常・大きな乱れ情報なし';
+    return makeItem(name, normalBody, '平常運転', URLS.hiroden);
   } catch (e) {
     return errorItem(name, e, URLS.hiroden);
   }
