@@ -149,13 +149,28 @@ function extractHirodenBusText(html) {
     .replace(/(20\d{2}\/\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2}\s+更新)/g, "\n$1")
     .replace(/(区間|程度|復旧見込|事由|詳細・備考)/g, "\n$1 ");
 
-  const busStart = text.indexOf("## 路線バス");
+  // まず「詳細」欄から探す。上部の一覧やナビを誤って拾わないため。
+  const detailMarker = "運行情報の詳細は以下の通りです";
+  const detailStart = text.indexOf(detailMarker);
+  const detailText = detailStart !== -1 ? text.slice(detailStart + detailMarker.length) : text;
+
+  // 詳細欄の中で「路線バス」を探す。
+  // 実際のHTMLをstripHtmlした文字列では "## 路線バス" ではなく
+  // 単に "路線バス" になるため、ここを広く見る。
+  const busStart = detailText.indexOf("路線バス");
   if (busStart === -1) return "";
 
-  const afterBus = text.slice(busStart);
-  const endMarkers = ["## 高速乗合バス", "## 空港連絡バス", "## 遅延証明", "高速乗合バス", "空港連絡バス"];
-  let end = afterBus.length;
+  const afterBus = detailText.slice(busStart);
 
+  // 路線バス欄の終端。高速・空港バスなどが続く場合はそこで切る。
+  const endMarkers = [
+    "高速乗合バス",
+    "空港連絡バス",
+    "遅延証明",
+    "電車運行案内"
+  ];
+
+  let end = afterBus.length;
   for (const marker of endMarkers) {
     const idx = afterBus.indexOf(marker, 10);
     if (idx !== -1 && idx < end) end = idx;
@@ -194,17 +209,17 @@ function getHirodenRouteStatus(record) {
 }
 
 function extractHirodenDetail(record) {
-  const degree = record.match(/程度\s+([^区間復旧見込事由詳細]{2,60}?)(?=\s+(区間|復旧見込|事由|詳細・備考)|$)/);
-  if (degree && degree[1]) return degree[1].trim();
+  const degree = record.match(/程度\s+(.{2,80}?)(?=\s+(区間|復旧見込|事由|詳細・備考|詳しい運行状況|バス延着証明書)|$)/);
+  if (degree && degree[1]) return degree[1].replace(/\s+/g, " ").trim();
 
-  const recovery = record.match(/復旧見込\s+([^区間程度事由詳細]{2,60}?)(?=\s+(区間|程度|事由|詳細・備考)|$)/);
-  if (recovery && recovery[1]) return recovery[1].trim();
+  const recovery = record.match(/復旧見込\s+(.{2,80}?)(?=\s+(区間|程度|事由|詳細・備考|詳しい運行状況|バス延着証明書)|$)/);
+  if (recovery && recovery[1]) return recovery[1].replace(/\s+/g, " ").trim();
 
-  const detail = record.match(/詳細・備考\s+(.{2,70})/);
+  const detail = record.match(/詳細・備考\s+(.{2,100})/);
   if (detail && detail[1]) {
     const d = detail[1].replace(/\s+/g, " ").trim();
-    const m = d.match(/(最大\s*\d+\s*分[^。 ]*|最大[０-９0-9]+分[^。 ]*|[0-9０-９]+分[〜～\-−][0-9０-９]+分程度|[0-9０-９]+分程度|遅れが発生[^。 ]*)/);
-    return (m ? m[1] : d.slice(0, 28)).trim();
+    const m = d.match(/(最大\s*[0-9０-９]+\s*分[^。 ]*|[0-9０-９]+分[〜～\-−][0-9０-９]+分程度|[0-9０-９]+分程度|遅れが発生[^。 ]*)/);
+    return (m ? m[1] : d.slice(0, 32)).trim();
   }
 
   return "";
