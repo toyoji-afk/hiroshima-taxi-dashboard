@@ -107,13 +107,46 @@ function todayPatternsJst() {
 }
 
 async function fetchText(url) {
-  const res = await fetch(url, {
-    headers: {
-      "user-agent": "Mozilla/5.0 GitHubActions hiroshima-taxi-dashboard personal checker"
+  const urls = [url];
+
+  // 広島バスだけ、まれにGitHub Actionsからの取得に失敗することがあるため、
+  // 念のため http 版も最後に試す。
+  if (url.includes("hirobus-info-rosen.jp") && url.startsWith("https://")) {
+    urls.push(url.replace("https://", "http://"));
+  }
+
+  let lastError = null;
+
+  for (const targetUrl of urls) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 18000);
+
+      try {
+        const res = await fetch(targetUrl, {
+          redirect: "follow",
+          signal: controller.signal,
+          headers: {
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36 hiroshima-taxi-dashboard",
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "accept-language": "ja,en-US;q=0.8,en;q=0.6",
+            "cache-control": "no-cache"
+          }
+        });
+
+        clearTimeout(timeout);
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.text();
+      } catch (error) {
+        clearTimeout(timeout);
+        lastError = error;
+        await new Promise(resolve => setTimeout(resolve, 900 * attempt));
+      }
     }
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return await res.text();
+  }
+
+  throw lastError || new Error("fetch failed");
 }
 
 
@@ -427,11 +460,15 @@ async function checkSource(source) {
       message: "取得OK。目立つ要確認語なし"
     };
   } catch (error) {
+    const msg = source.id === "hiroshima-bus"
+      ? "取得できませんでした。公式ページで確認"
+      : "取得できませんでした。公式リンクで確認";
+
     return {
       label: source.label,
       url: source.url,
       level: "error",
-      message: "取得できませんでした。公式リンクで確認"
+      message: msg
     };
   }
 }
