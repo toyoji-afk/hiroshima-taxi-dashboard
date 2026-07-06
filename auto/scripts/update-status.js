@@ -1,4 +1,4 @@
-// update-status.js v35 JR debug + route boundary parser
+// update-status.js v36 JR debug + LINEWISE route parser
 // Node.js 20+ / GitHub Actions
 // Optional but recommended: npm i playwright && npx playwright install --with-deps chromium
 
@@ -133,20 +133,65 @@ async function fetchRenderedText() {
   }
 }
 
-function indexOfNextStop(t, from) {
-  const candidates = [];
+function normalizeLines(text) {
+  return String(text || '')
+    .replace(/\r/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    .replace(/〜/g, '～')
+    .split('\n')
+    .map(x => x.replace(/[\t ]+/g, ' ').trim())
+    .filter(Boolean);
+}
 
-  for (const stop of JR_STOP_WORDS) {
-    const idx = t.indexOf(stop, from);
-    if (idx >= 0) candidates.push(idx);
+function isStopLine(line) {
+  if (!line) return false;
+  if (JR_STOP_WORDS.some(w => line.includes(w))) return true;
+
+  // 「小野田線（長門本山方面）」のように括弧付きでも止める。
+  // ただし対象路線名の本文中に出る「区間 山陽線内...」のような曖昧なものは避けるため、行頭一致を基本にする。
+  return ALL_JR_CHUGOKU_LINES.some(name => {
+    if (line === name) return true;
+    if (line.startsWith(name + '（')) return true;
+    if (line.startsWith(name + '(')) return true;
+    if (line.startsWith(name + ' ')) return true;
+    return false;
+  });
+}
+
+function hasStatusNearby(lines, idx, windowSize = 40) {
+  const chunk = lines.slice(idx, idx + windowSize).join(' ');
+  return JR_STATUS_WORDS.some(w => chunk.includes(w));
+}
+
+function extractTargetBlock(text, targetLine) {
+  const lines = normalizeLines(text);
+
+  const candidateIndexes = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line === targetLine || line.startsWith(targetLine + ' ') || line.startsWith(targetLine + '（') || line.startsWith(targetLine + '(')) {
+      candidateIndexes.push(i);
+    }
   }
 
-  for (const line of ALL_JR_CHUGOKU_LINES) {
-    const idx = t.indexOf(line, from);
-    if (idx >= 0) candidates.push(idx);
+  if (!candidateIndexes.length) return '';
+
+  // メニューや「列車走行位置」だけの山陽線を拾わないよう、異常語が近くにある候補を優先。
+  const start = candidateIndexes.find(i => hasStatusNearby(lines, i)) ?? candidateIndexes[0];
+
+  const out = [];
+  for (let i = start; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (i > start && isStopLine(line)) {
+      // 次のJR路線名やフッターに入ったら終了。
+      break;
+    }
+
+    out.push(line);
   }
 
-  return candidates.length ? Math.min(...candidates) : t.length;
+  return out.join(' ').replace(/\s+/g, ' ').trim();
 }
 
 function cleanJrMemoText(s, targetLine) {
@@ -159,23 +204,11 @@ function cleanJrMemoText(s, targetLine) {
     .trim();
 }
 
-function extractTargetBlock(text, targetLine) {
-  const t = compactLine(text);
-  const start = t.indexOf(targetLine);
-  if (start < 0) return '';
-
-  // Start searching after the target line name so the line itself is not treated as the next route.
-  const searchFrom = start + targetLine.length;
-  const end = indexOfNextStop(t, searchFrom);
-  return t.slice(start, end).trim();
-}
-
 function splitSameLineIncidents(block, targetLine) {
   const cleaned = cleanJrMemoText(block, targetLine);
   if (!cleaned) return [];
 
-  // JR can list several incidents under one long line, e.g.
-  // 山陽線 ... 区間 海田市～岩国 原因 人と接触 ... 詳細 一部列車運休・遅延 区間 三原～海田市 原因 倒木 ...
+  // 「詳細」を / にしてから、次の障害種別で分割する。
   const parts = cleaned
     .split(/\s+\/\s+(?=(順次運転見合わせ|運転見合わせ|一部列車運休・遅延|一部列車遅延|遅延あり|遅れ|運休|運転取り止め|運転再開|列車に遅れ))/g)
     .filter(x => x && !JR_STATUS_WORDS.includes(x));
@@ -190,7 +223,7 @@ function splitSameLineIncidents(block, targetLine) {
 
 function extractLineStatus(text, targetLine) {
   const block = extractTargetBlock(text, targetLine);
-  console.log(`\n[JR DEBUG] bounded block ${targetLine}:`);
+  console.log(`\n[JR DEBUG] LINEWISE bounded block ${targetLine}:`);
   console.log(block || '(not found)');
 
   const one = cleanJrMemoText(block, targetLine);
@@ -244,7 +277,7 @@ async function main() {
   const output = {
     updated_at: nowIsoJst(),
     items: jrStatuses,
-    debug_note: 'v35 JR boundary parser standalone. It stops a target route at the next JR route/section/footer word.'
+    debug_note: 'v36 JR linewise parser standalone. It extracts a route block by rendered text lines and stops at the next route/footer line.'
   };
 
   fs.writeFileSync(OUT_PATH, JSON.stringify(output, null, 2), 'utf8');
