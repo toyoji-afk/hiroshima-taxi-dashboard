@@ -23,6 +23,8 @@ jobs:
           node-version: "24"
 
       - name: Update status
+      - run: npm i playwright
+      - run: npx playwright install --with-deps chromium
         run: node auto/scripts/update-status.js
 
       - name: Commit status
