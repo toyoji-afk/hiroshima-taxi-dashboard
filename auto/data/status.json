@@ -1,13 +1,13 @@
 {
-  "updatedAt": "2026-07-06T01:19:54.260Z",
-  "updatedAtJst": "2026/07/06(月) 10:19",
+  "updatedAt": "2026-07-06T02:02:16.486Z",
+  "updatedAtJst": "2026/07/06(月) 11:02",
   "scheduleNote": "JST 00:00 / 06:00 / 12:00 / 18:00 目安で更新",
   "items": [
     {
       "label": "広島市周辺天気",
       "url": "https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=340000",
       "level": "alert",
-      "message": "今日 雨　昼過ぎ　から　くもり　所により　朝　まで　雷を伴い　激しく　降る／降水確率 午前目安 80%、午後目安 20%／最高気温 29℃"
+      "message": "今日 くもり　昼過ぎ　から　夕方　雨　所により　夜のはじめ頃　まで　雷　を伴う／降水確率 午前目安 60%、午後目安 20%／最高気温 29℃"
     },
     {
       "label": "JARTIC 広島",
@@ -31,13 +31,13 @@
       "label": "広島電鉄",
       "url": "https://www.hiroden.co.jp/traffic/info/",
       "level": "alert",
-      "message": "5号線○／6号線○／2号線遅延（最大20分の遅れ運行）｜全体：要確認キーワードあり：遅れ、遅延"
+      "message": "5号線○／6号線○／2号線○｜全体：要確認キーワードあり：遅れ"
     },
     {
       "label": "広島バス 路線バス",
       "url": "https://hirobus-info-rosen.jp/",
-      "level": "error",
-      "message": "取得できませんでした。公式リンクで確認"
+      "level": "ok",
+      "message": "通常運行、詳細は公式ページで確認"
     },
     {
       "label": "広島交通 路線バス",
