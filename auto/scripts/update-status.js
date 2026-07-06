@@ -1,4 +1,4 @@
-// update-status.js v58: Open-Meteo + JR/Hiroden stable + event fixes + stronger Carp detection
+// update-status.js v59: Open-Meteo + JR/Hiroden stable + stronger Carp multi-date detection
 // 広島市タクシーダッシュボード：本日の自動巡回メモ生成
 // Node.js 20+ / GitHub Actions
 //
@@ -948,14 +948,27 @@ function extractDateSectionByNextDate(text, today = todayJstParts(), radius = 90
   return t.slice(start, start + radius).trim();
 }
 
+function findAllIndexes(haystack, needle) {
+  const out = [];
+  if (!needle) return out;
+  let pos = 0;
+  while (true) {
+    const idx = haystack.indexOf(needle, pos);
+    if (idx < 0) break;
+    out.push(idx);
+    pos = idx + Math.max(1, needle.length);
+  }
+  return out;
+}
+
 function extractNpbCarpHomeGame(text, today = todayJstParts()) {
   const t = compactText(text);
   const day = Number(today.day);
   const month = Number(today.month);
 
-  // NPB公式ページはHTMLからテキスト化した時に、
-  // 「広島 - ヤクルト マツダスタジアム 18:00」のように綺麗に並ばないことがあります。
-  // そのため、当日見出し近辺の広めの範囲で「マツダスタジアム」「広島」「時刻」を見る。
+  // NPB公式ページには、上部の簡易リンク欄と本文の詳細欄の両方に同じ日付が出ます。
+  // 先頭の「7/7 Tue.」だけを見るとチーム名がなく検出漏れするため、
+  // 今日の日付候補を全部見て、広島・マツダ・時刻が揃う候補を採用します。
   const datePatterns = [
     today.ymdHyphen,
     today.ymdSlash,
@@ -966,49 +979,48 @@ function extractNpbCarpHomeGame(text, today = todayJstParts()) {
     `${String(month).padStart(2, '0')}.${String(day).padStart(2, '0')}`,
   ];
 
-  const indexes = datePatterns
-    .map(p => t.indexOf(p))
-    .filter(i => i >= 0);
+  const starts = [...new Set(
+    datePatterns.flatMap(p => findAllIndexes(t, p))
+  )].sort((a, b) => a - b);
 
-  if (!indexes.length) return null;
+  if (!starts.length) return null;
 
-  const start = Math.min(...indexes);
-
-  // 次の日付見出しまでを当日範囲にする。
-  // ただし同じ日付文字列の残りを誤って拾わないよう、少し後ろから探す。
-  const restStart = Math.min(t.length, start + 30);
-  const rest = t.slice(restStart);
-  const nextDateMatch = rest.search(/\b\d{1,2}[\/.]\d{1,2}(?:[（(][月火水木金土日][）)])?|\d{1,2}月\d{1,2}日/);
-  const end = nextDateMatch >= 0 ? restStart + nextDateMatch : Math.min(t.length, start + 3500);
-  const section = t.slice(start, end).trim();
-
-  const hasMazda = /マツダスタジアム|MAZDA|Zoom-Zoom|ズムスタ/i.test(section);
-  const hasHiroshima = /広島/.test(section);
-  const time = (section.match(/\b\d{1,2}:\d{2}\b/) || [])[0] || '';
-
-  if (!hasMazda || !hasHiroshima || !time) return null;
-
-  // 対戦相手は取れれば取る。取れなくても本拠地開催としては検出する。
   const teams = ['ヤクルト', '巨人', '阪神', 'DeNA', 'ＤｅＮＡ', '中日', '広島',
                  '日本ハム', '楽天', '西武', 'ロッテ', 'オリックス', 'ソフトバンク'];
-  let opponent = '';
 
-  // 「広島 ... ヤクルト」または「ヤクルト ... 広島」を広めに見る。
-  for (const team of teams) {
-    if (team === '広島') continue;
-    const re1 = new RegExp(`広島.{0,80}${team}`);
-    const re2 = new RegExp(`${team}.{0,80}広島`);
-    if (re1.test(section) || re2.test(section)) {
-      opponent = team.replace('ＤｅＮＡ', 'DeNA');
-      break;
+  let bestCandidate = null;
+
+  for (const start of starts) {
+    // 当日詳細欄の複数試合を含むように広めに見る。
+    // 次日付で切る処理は、上部簡易リンク欄で短く切れすぎるため使わない。
+    const section = t.slice(start, Math.min(t.length, start + 2600)).trim();
+
+    const hasMazda = /マツダスタジアム|マツダ|MAZDA|Zoom-Zoom|ズムスタ/i.test(section);
+    const hasHiroshima = /広島/.test(section);
+    const time = (section.match(/\b\d{1,2}:\d{2}\b/) || [])[0] || '';
+
+    if (!hasMazda || !hasHiroshima || !time) continue;
+
+    let opponent = '';
+
+    // 「広島 - ヤクルト」「ヤクルト - 広島」のような並びを広めに見る。
+    for (const team of teams) {
+      if (team === '広島') continue;
+      const re1 = new RegExp(`広島.{0,120}${team}`);
+      const re2 = new RegExp(`${team}.{0,120}広島`);
+      if (re1.test(section) || re2.test(section)) {
+        opponent = team.replace('ＤｅＮＡ', 'DeNA');
+        break;
+      }
     }
+
+    // 対戦相手まで取れた候補を最優先。
+    const candidate = { opponent, time, section };
+    if (opponent) return candidate;
+    if (!bestCandidate) bestCandidate = candidate;
   }
 
-  return {
-    opponent,
-    time,
-    section,
-  };
+  return bestCandidate;
 }
 
 function extractSanfrecceTodayHomeGame(text, today = todayJstParts()) {
