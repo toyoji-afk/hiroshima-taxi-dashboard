@@ -419,16 +419,19 @@ async function checkSource(source) {
 
     if (source.id === "hiroden") {
       const routeResult = judgeHirodenPriorityRoutes(html);
-      const keywordResult = checkKeywords(html, source.keywords);
-      const baseMessage = keywordResult.found.length
-        ? `要確認キーワードあり：${keywordResult.found.slice(0, 4).join("、")}`
+
+      // 広電ページ全体には「遅れ」「運休」などの一般説明文が含まれるため、
+      // ページ全体のキーワード判定はしない。
+      // 重点路線判定がalertでなければ、全体は取得OK扱いにする。
+      const overallMessage = routeResult.level === "alert"
+        ? "詳細は公式ページで確認"
         : "取得OK";
 
       return {
         label: source.label,
         url: source.url,
-        level: routeResult.level === "alert" ? "alert" : keywordResult.level,
-        message: `${routeResult.message}｜全体：${baseMessage}`
+        level: routeResult.level,
+        message: `${routeResult.message}｜全体：${overallMessage}`
       };
     }
 
