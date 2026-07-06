@@ -3,701 +3,319 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0b1220">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="乗務前チェック">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>広島タクシー乗務前チェック</title>
   <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="../assets/tsubame-icon-192.png">
+  <link rel="manifest" href="../manifest.webmanifest">
   <style>
-    :root {
-      --bg: #0b1220;
-      --panel: #121c2f;
-      --panel2: #18243a;
-      --card: #1e2d49;
-      --card-light: #243554;
-      --text: #ffffff;
-      --text-soft: #e5eefc;
-      --muted: #b8c7df;
-      --line: rgba(255,255,255,.16);
-      --accent: #f59e0b;
-      --accent-blue: #38bdf8;
-      --ok: #22c55e;
-      --shadow: 0 12px 26px rgba(0,0,0,.35);
-      --radius: 18px;
-    }
-
-    * { box-sizing: border-box; }
-
-    html {
-      scroll-behavior: smooth;
-      background: var(--bg);
-    }
-
-    body {
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Yu Gothic", Meiryo, sans-serif;
-      background:
-        radial-gradient(circle at top, #22314d 0%, #0b1220 48%, #050812 100%);
-      color: var(--text);
-      line-height: 1.6;
-      -webkit-font-smoothing: antialiased;
-      text-size-adjust: 100%;
-    }
-
-    a { color: inherit; text-decoration: none; }
-
-    .wrap {
-      width: min(900px, 100%);
-      margin: 0 auto;
-      padding: 12px 14px 98px;
-    }
-
-    header {
-      padding: 10px 0 9px;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      background: linear-gradient(to bottom, rgba(11,18,32,.98), rgba(11,18,32,.94), rgba(11,18,32,.78));
-      backdrop-filter: blur(14px);
-      border-bottom: 1px solid rgba(255,255,255,.06);
-    }
-
-    .title {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      margin-bottom: 0;
-    }
-
-    .badge {
-      flex: 0 0 auto;
-      width: 40px;
-      height: 40px;
-      display: grid;
-      place-items: center;
-      border-radius: 13px;
-      background: #f59e0b;
-      box-shadow: 0 8px 18px rgba(0,0,0,.28);
-      overflow: hidden;
-    }
-
-    .badge img {
-      width: 100%;
-      height: 100%;
-      display: block;
-      object-fit: cover;
-    }
-
-    h1 {
-      margin: 0;
-      font-size: clamp(17px, 4.7vw, 24px);
-      letter-spacing: .02em;
-      line-height: 1.18;
-      font-weight: 850;
-      color: var(--text);
-      white-space: nowrap;
-    }
-
-    .date {
-      color: var(--text-soft);
-      font-size: 13px;
-      margin-top: 2px;
-      font-weight: 650;
-    }
-
-    .toolbar {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 10px;
-      margin-top: 12px;
-    }
-
-    button {
-      appearance: none;
-      border: 1px solid var(--line);
-      color: var(--text);
-      background: #263756;
-      border-radius: 16px;
-      padding: 14px 13px;
-      font-size: 16px;
-      font-weight: 700;
-      cursor: pointer;
-      box-shadow: 0 2px 0 rgba(255,255,255,.04) inset;
-    }
-
-    button:active, .link:active { transform: scale(.985); }
-
-    .notice {
-      margin: 12px 0 16px;
-      padding: 15px 16px;
-      border: 1px solid rgba(245,158,11,.70);
-      border-radius: var(--radius);
-      background: rgba(245,158,11,.14);
-      color: #fff7ed;
-      font-size: 15px;
-      font-weight: 600;
-    }
-
-    .notice strong {
-      color: #fde68a;
-    }
-
-
-    .top-section-title {
-      margin: 14px 2px 10px;
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 10px;
-      color: var(--text);
-    }
-
-    .top-section-title span {
-      font-size: 17px;
-      font-weight: 850;
-      letter-spacing: .03em;
-    }
-
-    .top-section-title small {
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 700;
-      white-space: nowrap;
-    }
-
-    .quick {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 12px;
-      margin: 8px 0 20px;
-    }
-
-    section {
-      margin: 20px 0;
-      border: 1px solid var(--line);
-      background: var(--panel);
-      border-radius: var(--radius);
-      overflow: hidden;
-      box-shadow: var(--shadow);
-    }
-
-    .section-head {
-      padding: 16px 16px 13px;
-      border-bottom: 1px solid var(--line);
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: baseline;
-      background: #18243a;
-    }
-
-    h2 {
-      margin: 0;
-      font-size: 21px;
-      color: var(--text);
-      font-weight: 850;
-    }
-
-    .hint {
-      color: #dbeafe;
-      font-size: 13px;
-      font-weight: 700;
-      white-space: nowrap;
-      opacity: .9;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 12px;
-      padding: 14px;
-    }
-
-    .link {
-      display: grid;
-      grid-template-columns: 54px 1fr 18px;
-      align-items: center;
-      gap: 14px;
-      padding: 15px 14px;
-      min-height: 82px;
-      border-radius: 17px;
-      background: var(--card);
-      border: 1px solid rgba(255,255,255,.16);
-      box-shadow: 0 1px 0 rgba(255,255,255,.04) inset;
-      transition: transform .08s ease, background .12s ease;
-    }
-
-    .quick .link {
-      background: linear-gradient(135deg, #2d3f60, #1d3950);
-      border-color: rgba(255,255,255,.20);
-    }
-
-    .link:hover { background: var(--card-light); }
-
-    .icon {
-      width: 54px;
-      height: 54px;
-      display: grid;
-      place-items: center;
-      border-radius: 16px;
-      background: rgba(255,255,255,.12);
-      font-size: 28px;
-    }
-
-    .name {
-      display: block;
-      color: var(--text);
-      font-weight: 850;
-      font-size: 18px;
-      line-height: 1.35;
-      letter-spacing: .01em;
-    }
-
-    .desc {
-      display: block;
-      color: var(--muted);
-      font-size: 14px;
-      font-weight: 600;
-      margin-top: 4px;
-      line-height: 1.45;
-    }
-
-    .arrow {
-      color: rgba(255,255,255,.72);
-      font-size: 28px;
-      line-height: 1;
-      text-align: right;
-    }
-
-    .checkrow {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 10px;
-      padding: 14px;
-      border-top: 1px solid var(--line);
-      background: rgba(0,0,0,.14);
-    }
-
-    .check {
-      min-height: 52px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      font-weight: 800;
-    }
-
-    .check.done {
-      background: rgba(34,197,94,.24);
-      border-color: rgba(34,197,94,.70);
-      color: #dcfce7;
-    }
-
-    textarea {
-      width: 100%;
-      min-height: 130px;
-      color: var(--text);
-      background: #0f1a2d;
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 15px;
-      font: inherit;
-      font-size: 16px;
-      resize: vertical;
-      outline: none;
-    }
-
-    textarea::placeholder {
-      color: #8ea3c2;
-    }
-
-    .footer {
-      color: var(--muted);
-      font-size: 13px;
-      padding: 12px 4px;
-    }
-
-    .bottom-nav {
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
-      background: rgba(5,8,18,.96);
-      backdrop-filter: blur(16px);
-      border-top: 1px solid var(--line);
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      z-index: 20;
-    }
-
-    .bottom-nav a {
-      text-align: center;
-      padding: 11px 5px;
-      border-radius: 14px;
-      background: #1f2f4c;
-      color: #ffffff;
-      font-size: 13px;
-      font-weight: 850;
-      border: 1px solid rgba(255,255,255,.12);
-    }
-
-
-    .footer-actions {
-      margin: 20px 0 8px;
-      padding: 14px;
-      border: 1px solid var(--line);
-      background: var(--panel);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 10px;
-    }
-
-    .footer-actions .toplink {
-      display: block;
-      text-align: center;
-      border: 1px solid var(--line);
-      color: var(--text);
-      background: #263756;
-      border-radius: 16px;
-      padding: 14px 13px;
-      font-size: 16px;
-      font-weight: 800;
-    }
-
-    .subnote {
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 600;
-      margin: 4px 2px 0;
-      line-height: 1.65;
-    }
-
-    .subnote strong {
-      color: #fde68a;
-    }
-
-
-
-    .auto-summary {
-      margin-top: 14px;
-      border-color: rgba(56,189,248,.34);
-    }
-
-    .auto-body {
-      padding: 14px 15px 15px;
-      background: rgba(15,26,45,.62);
-    }
-
-    .auto-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      display: grid;
-      gap: 10px;
-    }
-
-    .auto-list li {
-      padding: 12px 12px;
-      border-radius: 14px;
-      background: #1e2d49;
-      border: 1px solid rgba(255,255,255,.14);
-      color: var(--text);
-      font-size: 15px;
-      font-weight: 700;
-      line-height: 1.5;
-    }
-
-    .auto-list li.alert {
-      background: rgba(245,158,11,.18);
-      border-color: rgba(245,158,11,.55);
-    }
-
-    .auto-list li.error {
-      background: rgba(239,68,68,.16);
-      border-color: rgba(239,68,68,.48);
-    }
-
-    .auto-list li.ok {
-      background: rgba(34,197,94,.13);
-      border-color: rgba(34,197,94,.38);
-    }
-
-    .auto-list a {
-      text-decoration: underline;
-      text-underline-offset: 3px;
-    }
-
-    .auto-note {
-      margin-top: 12px;
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 650;
-      line-height: 1.6;
-    }
-
-
-    .version-switch {
-      margin: 20px 0 8px;
-      padding: 16px;
-      border: 1px solid var(--line);
-      background: var(--panel);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-    }
-
-    .version-switch h2 {
-      margin: 0 0 8px;
-      font-size: 20px;
-    }
-
-    .version-switch p {
-      margin: 0 0 12px;
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 650;
-      line-height: 1.65;
-    }
-
-    .version-switch a {
-      display: block;
-      text-align: center;
-      border: 1px solid rgba(56,189,248,.55);
-      color: var(--text);
-      background: #1d3950;
-      border-radius: 16px;
-      padding: 14px 13px;
-      font-size: 16px;
-      font-weight: 850;
-    }
-
-    .share-box {
-      margin: 20px 0 8px;
-      padding: 16px;
-      border: 1px solid var(--line);
-      background: var(--panel);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      text-align: center;
-    }
-
-    .share-box h2 {
-      margin-bottom: 6px;
-      font-size: 20px;
-    }
-
-    .share-box p {
-      margin: 6px 0 12px;
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 600;
-      line-height: 1.6;
-    }
-
-    .qr-wrap {
-      display: inline-block;
-      padding: 12px;
-      background: #ffffff;
-      border-radius: 16px;
-      box-shadow: 0 8px 18px rgba(0,0,0,.28);
-    }
-
-    .qr-wrap img {
-      display: block;
-      width: 190px;
-      height: 190px;
-    }
-
-    .share-url {
-      margin: 12px auto 0;
-      padding: 10px 11px;
-      max-width: 100%;
-      color: var(--text-soft);
-      background: #0f1a2d;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      font-size: 12px;
-      overflow-wrap: anywhere;
-      text-align: left;
-    }
-
-    @media (min-width: 680px) {
-      .toolbar { grid-template-columns: 220px 220px; }
-      .quick { grid-template-columns: repeat(2, 1fr); }
-      .grid { grid-template-columns: repeat(2, 1fr); }
-      .checkrow { grid-template-columns: repeat(2, 1fr); }
-      .bottom-nav { display: none; }
-      .wrap { padding-bottom: 44px; }
-    }
-  
-    /* v20 compact layout */
-    .link-card p,
-    .quick-card p,
-    .card p.desc,
-    .card .desc,
-    .desc,
-    .card-desc {
-      display: none !important;
-    }
-    .check-btn,
-    .checked-btn,
-    .reset-btn,
-    .copy-url-btn,
-    [data-action="check"],
-    [data-action="reset"],
-    [data-action="copy-url"] {
-      display: none !important;
-    }
-    .link-card,
-    .quick-card,
-    .card {
-      padding-top: 12px !important;
-      padding-bottom: 12px !important;
-    }
-    .card h3,
-    .link-card h3,
-    .quick-card h3 {
-      margin-bottom: 4px !important;
-    }
-    .actions,
-    .footer-actions {
-      gap: 8px !important;
-    }
-    
+:root {
+  color-scheme: dark;
+  --bg: #07142a;
+  --panel: #101f3d;
+  --panel2: #13264b;
+  --text: #f5f7fb;
+  --muted: #b9c4d8;
+  --line: rgba(255,255,255,.14);
+  --accent: #ffcc4d;
+  --ok: #7ee787;
+  --alert: #ffd166;
+  --error: #ff8a8a;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: linear-gradient(180deg, #07142a 0%, #0c1b36 100%);
+  color: var(--text);
+}
+.page {
+  width: min(980px, 100%);
+  margin: 0 auto;
+  padding: 12px 12px 74px;
+}
+header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px 6px;
+}
+.logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  object-fit: cover;
+  flex: 0 0 auto;
+}
+h1 {
+  font-size: 20px;
+  line-height: 1.15;
+  margin: 0;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+.today {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 3px;
+}
+.auto-box, .memo-box, .section, .qr-box, .bottom-actions {
+  background: rgba(16,31,61,.92);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px;
+  margin: 10px 0;
+  box-shadow: 0 8px 22px rgba(0,0,0,.18);
+}
+.auto-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+.auto-head h2, .section h2, .memo-box h2, .qr-box h2 {
+  font-size: 16px;
+  margin: 0;
+}
+.updated {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.auto-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.auto-list li {
+  border-top: 1px solid var(--line);
+  padding: 8px 0;
+  font-size: 14px;
+  line-height: 1.35;
+}
+.auto-list li:first-child { border-top: 0; padding-top: 0; }
+.auto-list a { color: var(--text); font-weight: 700; text-decoration: none; }
+.badge {
+  display: inline-block;
+  min-width: 42px;
+  text-align: center;
+  margin-right: 6px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+}
+.ok .badge { background: rgba(126,231,135,.18); color: var(--ok); }
+.alert .badge { background: rgba(255,209,102,.18); color: var(--alert); }
+.error .badge { background: rgba(255,138,138,.18); color: var(--error); }
+.link-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 7px;
+  margin-top: 8px;
+}
+.link-row {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255,255,255,.045);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 650;
+}
+.link-row span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+textarea {
+  width: 100%;
+  min-height: 74px;
+  resize: vertical;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(0,0,0,.22);
+  color: var(--text);
+  padding: 10px;
+  font-size: 16px;
+  margin-top: 8px;
+}
+button, .action-link {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  padding: 10px;
+  font-weight: 800;
+  background: var(--panel2);
+  color: var(--text);
+  margin-top: 8px;
+  text-align: center;
+  text-decoration: none;
+  font-size: 14px;
+}
+.bottom-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+.qr-wrap {
+  display: grid;
+  grid-template-columns: 112px 1fr;
+  gap: 12px;
+  align-items: center;
+  margin-top: 10px;
+}
+.qr-wrap img {
+  width: 112px;
+  height: 112px;
+  border-radius: 10px;
+  background: white;
+  padding: 6px;
+}
+.qr-text {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+  word-break: break-all;
+}
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: rgba(0,0,0,.5);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--line);
+}
+.bottom-nav a {
+  color: var(--text);
+  text-decoration: none;
+  text-align: center;
+  padding: 10px 4px 12px;
+  font-size: 13px;
+  background: rgba(16,31,61,.92);
+}
+footer {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+  padding: 18px 0 0;
+}
+@media (min-width: 720px) {
+  .link-list { grid-template-columns: 1fr 1fr; }
+  .bottom-actions { grid-template-columns: 1fr 1fr; gap: 8px; }
+}
 </style>
 </head>
 <body>
-  <div class="wrap">
+  <main class="page">
     <header>
-      <div class="title">
-        <div class="badge"><img src="../assets/tsubame-icon-192.png" alt="ツバメ交通"></div>
-        <div>
-          <h1>広島タクシー乗務前チェック</h1>
-          <div class="date" id="today">今日の日付を読み込み中...</div>
-        </div>
+      <img class="logo" src="../assets/tsubame-icon-192.png" alt="">
+      <div>
+        <h1>広島タクシー乗務前チェック</h1>
+        <div id="today" class="today">今日の日付を読み込み中</div>
       </div>
     </header>
 
-    <section class="auto-summary" id="autoSummary">
-      <div class="section-head"><h2>本日の自動巡回メモ</h2><span class="hint" id="autoUpdated">読み込み中</span></div>
-      <div class="auto-body">
-        <ul id="autoList" class="auto-list">
-          <li>巡回データを読み込んでいます...</li>
-        </ul>
-        <div class="auto-note">試験版です。天気・道路・運行・イベントの最終判断は必ず各公式サイトで確認してください。</div>
-      </div>
-    </section>
-
-    <section id="road">
-      <div class="section-head"><h2>道路・規制</h2><span class="hint">最優先</span></div>
-      <div class="grid">
-        <a class="link" href="https://www.jartic.or.jp/map/?p=R34"><span class="icon">🚦</span><span><span class="name">JARTIC 広島</span><span class="desc">事故・渋滞・道路交通情報</span></span><span class="arrow">›</span></a>
-        <a class="link" href="https://www.roadnavi.pref.hiroshima.lg.jp/"><span class="icon">🛣️</span><span><span class="name">ひろしま道路ナビ</span><span class="desc">県内の規制・通行止め・冬用タイヤ規制</span></span><span class="arrow">›</span></a>
-        <a class="link" href="https://www.roadnavi.pref.hiroshima.lg.jp/camera_list.php"><span class="icon">📷</span><span><span class="name">広島県道路カメラ</span><span class="desc">山間部・郊外方面の路面確認</span></span><span class="arrow">›</span></a>
-        <a class="link" href="https://www.h-exp.or.jp/"><span class="icon">🏙️</span><span><span class="name">広島高速道路公社</span><span class="desc">広島高速の交通情報・料金・通行止め</span></span><span class="arrow">›</span></a>
-        <a class="link" href="https://www.city.hiroshima.lg.jp/living/doro-kotsu-kasen/1021384/1026405/1026406/1018843.html"><span class="icon">🚧</span><span><span class="name">広島市 通行規制情報</span><span class="desc">長期工事・市内主要道路の規制</span></span><span class="arrow">›</span></a>
-        <a class="link" href="https://www.pref.hiroshima.lg.jp/site/police/"><span class="icon">👮</span><span><span class="name">広島県警察</span><span class="desc">交通規制・取締り・イベント時規制</span></span><span class="arrow">›</span></a>
-      </div>
-      <div class="checkrow">
-      </div>
-    </section>
-
-    <section id="railbus">
-      <div class="section-head"><h2>鉄道・バス</h2><span class="hint">需要変化</span></div>
-      <div class="grid">
-        <a class="link" href="https://trafficinfo.westjr.co.jp/chugoku.html"><span class="icon">🚃</span><span><span class="name">JR西日本 中国エリア</span><span class="desc">広島・山口地区などの列車運行情報</span></span><span class="arrow">›</span></a>
-        <a class="link" href="https://www.hiroden.co.jp/traffic/info/"><span class="icon">🚋</span><span><span class="name">広島電鉄 運行情報</span><span class="desc">電車・バスの運休・大幅遅れ</span></span><span class="arrow">›</span></a>
-        <a class="link" href="https://www.hiroden.co.jp/bus/"><span class="icon">🚌</span><span><span class="name">広電バス情報</span><span class="desc">バス停・時刻表・遅延証明など</span></span><span class="arrow">›</span></a>
-        <a class="link" href="https://hirobus-info-rosen.jp/"><span class="icon">🚌</span><span><span class="name">広島バス 路線バス運行情報</span><span class="desc">天災・通行止め等による運行情報</span></span><span class="arrow">›</span></a>
-        <a class="link" href="https://www.h-buscenter.com/smp/operation_info/"><span class="icon">🚍</span><span><span class="name">広島バスセンター 出発便運行情報</span><span class="desc">高速バス・空港リムジン等の運休確認</span></span><span class="arrow">›</span></a>
-        <a class="link" href="https://www.h-buscenter.com/"><span class="icon">🏢</span><span><span class="name">広島バスセンター</span><span class="desc">バス案内・お知らせ全般</span></span><span class="arrow">›</span></a>
-      </div>
-      <div class="checkrow">
-      </div>
-    </section>
-
-    <section id="airport">
-      <div class="section-head"><h2>空港</h2><span class="hint">空港送迎</span></div>
-      <div class="grid">
-        <a class="link" href="https://www.hij.airport.jp/flight/flight_dd.html"><span class="icon">🛫</span><span><span class="name">広島空港 国内線 出発</span><span class="desc">本日の出発便・遅延・欠航</span></span><span class="arrow">›</span></a>
-        <a class="link" href="https://www.hij.airport.jp/flight/flight_da.html"><span class="icon">🛬</span><span><span class="name">広島空港 国内線 到着</span><span class="desc">本日の到着便・遅延・欠航</span></span><span class="arrow">›</span></a>
-        <a class="link" href="https://www.hij.airport.jp/flight/flight_id.html"><span class="icon">🌏</span><span><span class="name">広島空港 国際線 出発</span><span class="desc">国際線の出発便確認</span></span><span class="arrow">›</span></a>
-        <a class="link" href="https://www.hij.airport.jp/flight/flight_ia.html"><span class="icon">🌏</span><span><span class="name">広島空港 国際線 到着</span><span class="desc">国際線の到着便確認</span></span><span class="arrow">›</span></a>
-        <a class="link" href="https://www.hij.airport.jp/access/"><span class="icon">🚕</span><span><span class="name">広島空港 交通アクセス</span><span class="desc">空港連絡バス・車・駐車場</span></span><span class="arrow">›</span></a>
-      </div>
-      <div class="checkrow">
-      </div>
-    </section>
-
-    <section id="events">
-      <div class="section-head"><h2>イベント・需要予測</h2><span class="hint">人の流れ</span></div>
-      <div class="grid">
-        <a class="link" href="https://www.ticket.carp.co.jp/calendar/"><span class="icon">⚾</span><span><span class="name">広島東洋カープ 日程</span><span class="desc">マツダスタジアム周辺の混雑・需要確認</span></span><span class="arrow">›</span></a>
-        <a class="link" href="https://www.sanfrecce.co.jp/matches/results"><span class="icon">⚽</span><span><span class="name">サンフレッチェ 試合日程/結果</span><span class="desc">Eピース周辺・紙屋町方面の人流確認</span></span><span class="arrow">›</span></a>
-        <a class="link" href="https://hiroshima-stadiumpark.jp/peacewing/schedule/"><span class="icon">🏟️</span><span><span class="name">エディオンピースウイング イベント</span><span class="desc">試合以外のスタジアムイベント</span></span><span class="arrow">›</span></a>
-        <a class="link" href="https://h-bkk.jp/hall/calendar/"><span class="icon">🎤</span><span><span class="name">HBGホール 月間スケジュール</span><span class="desc">加古町・平和大通り周辺</span></span><span class="arrow">›</span></a>
-        <a class="link" href="https://www.rcchall.jp/hall/entertainments/"><span class="icon">🎼</span><span><span class="name">上野学園ホール 公演スケジュール</span><span class="desc">白島・牛田・広島城周辺</span></span><span class="arrow">›</span></a>
-        <a class="link" href="https://www.pcf.city.hiroshima.jp/icch/event.cgi"><span class="icon">🏛️</span><span><span class="name">広島国際会議場 イベント</span><span class="desc">平和公園・紙屋町周辺</span></span><span class="arrow">›</span></a>
-        <a class="link" href="https://dive-hiroshima.com/"><span class="icon">⛩️</span><span><span class="name">Dive! Hiroshima</span><span class="desc">観光・季節イベント・お客様との会話ネタ</span></span><span class="arrow">›</span></a>
-      </div>
-      <div class="checkrow">
-      </div>
-    </section>
-
-    <section id="company">
-      <div class="section-head"><h2>業務・会社・配車</h2><span class="hint">基本リンク</span></div>
-      <div class="grid">
-        <a class="link" href="https://www.tsubame.co.jp/"><span class="icon">🚕</span><span><span class="name">ツバメ交通</span><span class="desc">自社公式サイト</span></span><span class="arrow">›</span></a>
-        <a class="link" href="https://www.taxi-hiroshima.com/"><span class="icon">🚖</span><span><span class="name">広島県タクシー協会</span><span class="desc">協会情報・制度確認</span></span><span class="arrow">›</span></a>
-        <a class="link" href="https://go.goinc.jp/area"><span class="icon">📱</span><span><span class="name">GO 対応エリア</span><span class="desc">配車アプリ対応エリア確認</span></span><span class="arrow">›</span></a>
-        <a class="link" href="https://www.uber.com/jp/ja/r/cities/taxi/hiroshima-hiroshima-jp/"><span class="icon">📲</span><span><span class="name">Uber Taxi 広島</span><span class="desc">お客様説明用の公式情報</span></span><span class="arrow">›</span></a>
-      </div>
-    </section>
-
-    <section>
-      <div class="section-head"><h2>今日のメモ</h2><span class="hint">端末内保存</span></div>
-      <div style="padding:14px">
-        <textarea id="memo" placeholder="例：広島駅周辺混雑／マツダスタジアム18:00開始／空港到着便遅れあり など"></textarea>
-      </div>
-    </section>
-
-
-
-
-    <div class="version-switch">
-      <h2>手動リンク版に戻る</h2>
-      <p>自動巡回版は試験版です。表示が不安定な場合や確実に公式サイトを確認したい場合は、手動リンク版を使ってください。</p>
-      <a href="../">手動リンク版を開く</a>
-    </div>
-
-    <div class="share-box">
-      <h2>共有用QRコード</h2>
-      <p>このページを同僚や先輩に見せるときは、下のQRコードを読み取ってもらってください。</p>
-      <div class="qr-wrap">
-        <img id="qrCode" alt="共有用QRコード">
-      </div>
-      <div class="share-url" id="shareUrl">URLを読み込み中...</div>
-    </div>
-
-    <div class="footer-actions">
-      <button id="copyMemo">メモをコピー</button>
-      <a class="toplink" href="#">ページ先頭へ戻る</a>
-      <div class="subnote">
-        <strong>使い方：</strong>乗務前や休憩中に、上から順に確認。公式サイトで最終確認し、確認後は「チェック済み」を押すと、この端末に今日の状態が保存されます。<br>
-        リンクは同じタブで開きます。確認後はブラウザの「戻る」でこの画面へ戻ってください。
-      </div>
-    </div>
-
-    <div class="footer">
-      個人用ダッシュボードです。道路・運行・フライト等の最終確認は必ず各公式サイトで行ってください。手動リンク版：ロゴアイコン対応版。
-    </div>
+    
+<section class="auto-box">
+  <div class="auto-head">
+    <h2>本日の自動巡回メモ</h2>
+    <div id="autoUpdated" class="updated">読み込み中</div>
   </div>
+  <ul id="autoList" class="auto-list">
+    <li><span class="badge">確認中</span>巡回データを読み込んでいます。</li>
+  </ul>
+</section>
+
+
+    <section id="road" class="section">
+  <h2>道路・規制</h2>
+  <div class="link-list">
+    <a class="link-row" href="https://www.jartic.or.jp/map/?p=R34">JARTIC 広島<span>開く</span></a>
+    <a class="link-row" href="https://www.roadnavi.pref.hiroshima.lg.jp/">ひろしま道路ナビ<span>開く</span></a>
+    <a class="link-row" href="https://www.roadnavi.pref.hiroshima.lg.jp/roadcam/">広島県道路カメラ<span>開く</span></a>
+    <a class="link-row" href="https://www.h-exp.or.jp/">広島高速道路公社<span>開く</span></a>
+    <a class="link-row" href="https://www.city.hiroshima.lg.jp/">広島市 通行規制情報<span>開く</span></a>
+    <a class="link-row" href="https://www.pref.hiroshima.lg.jp/site/police/">広島県警察<span>開く</span></a>
+  </div>
+</section>
+<section id="railbus" class="section">
+  <h2>鉄道・バス</h2>
+  <div class="link-list">
+    <a class="link-row" href="https://trafficinfo.westjr.co.jp/chugoku.html">JR西日本 中国エリア<span>開く</span></a>
+    <a class="link-row" href="https://www.hiroden.co.jp/traffic/info/">広島電鉄 運行情報<span>開く</span></a>
+    <a class="link-row" href="https://www.hiroden.co.jp/bus/">広電バス情報<span>開く</span></a>
+    <a class="link-row" href="https://hirobus-info-rosen.jp/">広島バス情報<span>開く</span></a>
+    <a class="link-row" href="https://www.h-buscenter.com/smp/operation_info/">広島バスセンター 出発便運行情報<span>開く</span></a>
+  </div>
+</section>
+<section id="airport" class="section">
+  <h2>空港</h2>
+  <div class="link-list">
+    <a class="link-row" href="https://www.hij.airport.jp/flight/flight_dd.html">広島空港 国内線 出発<span>開く</span></a>
+    <a class="link-row" href="https://www.hij.airport.jp/flight/flight_da.html">広島空港 国内線 到着<span>開く</span></a>
+    <a class="link-row" href="https://www.hij.airport.jp/flight/flight_id.html">広島空港 国際線 出発<span>開く</span></a>
+    <a class="link-row" href="https://www.hij.airport.jp/flight/flight_ia.html">広島空港 国際線 到着<span>開く</span></a>
+  </div>
+</section>
+<section id="events" class="section">
+  <h2>イベント・需要予測</h2>
+  <div class="link-list">
+    <a class="link-row" href="https://www.ticket.carp.co.jp/calendar/">カープ 日程<span>開く</span></a>
+    <a class="link-row" href="https://www.sanfrecce.co.jp/matches/results">サンフレッチェ 日程・結果<span>開く</span></a>
+    <a class="link-row" href="https://www.rcchall.jp/hall/schedule">上野学園ホール 公演スケジュール<span>開く</span></a>
+    <a class="link-row" href="https://h-bkk.jp/hall/schedule/">HBGホール 月間スケジュール<span>開く</span></a>
+    <a class="link-row" href="https://www.pcf.city.hiroshima.jp/icch/event/">国際会議場 イベント<span>開く</span></a>
+    <a class="link-row" href="https://h-jigyoudan.or.jp/sports-center/">グリーンアリーナ<span>開く</span></a>
+    <a class="link-row" href="https://dive-hiroshima.com/">Dive! Hiroshima<span>開く</span></a>
+  </div>
+</section>
+<section id="work" class="section">
+  <h2>業務・会社</h2>
+  <div class="link-list">
+    <a class="link-row" href="https://www.tsubame.co.jp/">ツバメ交通<span>開く</span></a>
+    <a class="link-row" href="https://go.goinc.jp/area/hiroshima/">GO 対応エリア<span>開く</span></a>
+    <a class="link-row" href="https://www.uber.com/jp/ja/ride/">Uber タクシー 広島<span>開く</span></a>
+  </div>
+</section>
+
+    <section id="memo" class="memo-box">
+      <h2>今日のメモ</h2>
+      <textarea id="memo" placeholder="気になった道路、イベント、注意点など"></textarea>
+      <button id="copyMemo" type="button">メモをコピー</button>
+    </section>
+
+    <section class="bottom-actions">
+      <a class="action-link" href="../">手動リンク版を開く</a>
+      <a class="action-link" href="#memo">今日のメモへ</a>
+    </section>
+
+    <section class="qr-box">
+      <h2>共有用QRコード</h2>
+      <div class="qr-wrap">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https%3A%2F%2Ftoyoji-afk.github.io%2Fhiroshima-taxi-dashboard%2Fauto%2F" alt="共有用QRコード">
+        <div class="qr-text">
+          同僚に共有するときは、このQRコードを読み取ってもらってください。<br>
+          https://toyoji-afk.github.io/hiroshima-taxi-dashboard/auto/
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      第22版：指定リンク構成・QRコード復活
+    </footer>
+  </main>
 
   <nav class="bottom-nav" aria-label="主要メニュー">
     <a href="#road">道路</a>
@@ -707,118 +325,92 @@
   </nav>
 
   <script>
-    const pad = n => String(n).padStart(2, "0");
-    const now = new Date();
-    const weekdays = ["日","月","火","水","木","金","土"];
-    const todayKey = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
-    document.getElementById("today").textContent =
-      `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${weekdays[now.getDay()]}）`;
 
-    const storagePrefix = `hiroshimaTaxiDash:${todayKey}:`;
-    const memoKey = `hiroshimaTaxiDash:memo:${todayKey}`;
-      if (localStorage.getItem(key) === "1") {
-        btn.classList.add("done");
-        btn.textContent = "✓ " + btn.textContent.replace(/^✓\s*/, "");
-      }
-      btn.addEventListener("click", () => {
-        const done = btn.classList.toggle("done");
-        localStorage.setItem(key, done ? "1" : "0");
-        btn.textContent = (done ? "✓ " : "") + btn.textContent.replace(/^✓\s*/, "");
-      });
-    });
+const pad = n => String(n).padStart(2, "0");
+const now = new Date();
+const weekdays = ["日","月","火","水","木","金","土"];
+const todayKey = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+document.getElementById("today").textContent =
+  `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${weekdays[now.getDay()]}）`;
 
-    const memo = document.getElementById("memo");
-    memo.value = localStorage.getItem(memoKey) || "";
-    memo.addEventListener("input", () => localStorage.setItem(memoKey, memo.value));
+const memoKey = `hiroshimaTaxiDash:memo:${todayKey}`;
+const memo = document.getElementById("memo");
+if (memo) {
+  memo.value = localStorage.getItem(memoKey) || "";
+  memo.addEventListener("input", () => localStorage.setItem(memoKey, memo.value));
+}
+
+const copyMemo = document.getElementById("copyMemo");
+if (copyMemo && memo) {
+  copyMemo.addEventListener("click", async () => {
+    const text = memo.value.trim();
+    if (!text) {
+      alert("メモ欄が空です。");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      alert("メモをコピーしました。");
+    } catch (e) {
+      alert("コピーできませんでした。メモを長押しして選択コピーしてください。");
+    }
+  });
+}
 
 
+async function loadAutoSummary() {
+  const autoList = document.getElementById("autoList");
+  const autoUpdated = document.getElementById("autoUpdated");
+  if (!autoList || !autoUpdated) return;
 
-    async function loadAutoSummary() {
-      const autoList = document.getElementById("autoList");
-      const autoUpdated = document.getElementById("autoUpdated");
-      if (!autoList || !autoUpdated) return;
+  try {
+    const pathParts = location.pathname.split("/").filter(Boolean);
+    const repoName = pathParts[0] || "hiroshima-taxi-dashboard";
+    const userName = location.hostname.replace(".github.io", "");
+    const rawStatusUrl = `https://raw.githubusercontent.com/${userName}/${repoName}/main/auto/data/status.json?v=${Date.now()}`;
+    const localStatusUrl = `data/status.json?v=${Date.now()}`;
 
-      try {
-        const res = await fetch("data/status.json?v=" + Date.now(), { cache: "no-store" });
-        if (!res.ok) throw new Error("status.json not found");
-        const data = await res.json();
+    let res = await fetch(rawStatusUrl, { cache: "no-store" });
+    if (!res.ok) {
+      res = await fetch(localStatusUrl, { cache: "no-store" });
+    }
+    if (!res.ok) throw new Error("status.json not found");
 
-        const updated = data.updatedAtJst || data.updatedAt || "更新時刻不明";
-        autoUpdated.textContent = "更新: " + updated;
+    const data = await res.json();
+    const updated = data.updatedAtJst || data.updatedAt || "更新時刻不明";
+    autoUpdated.textContent = "更新: " + updated;
 
-        const items = Array.isArray(data.items) ? data.items : [];
-        if (!items.length) {
-          autoList.innerHTML = "<li class='error'>巡回結果が空です。GitHub Actionsの実行状況を確認してください。</li>";
-          return;
-        }
-
-        autoList.innerHTML = items.map(item => {
-          const cls = item.level === "alert" ? "alert" : item.level === "error" ? "error" : "ok";
-          const icon = item.level === "alert" ? "⚠️" : item.level === "error" ? "🔴" : "✅";
-          const label = escapeHtml(item.label || "情報源");
-          const message = escapeHtml(item.message || "確認してください");
-          const url = item.url ? String(item.url) : "#";
-          return `<li class="${cls}">${icon} <a href="${url}">${label}</a>：${message}</li>`;
-        }).join("");
-      } catch (e) {
-        autoUpdated.textContent = "未取得";
-        autoList.innerHTML =
-          "<li class='error'>自動巡回データがまだありません。まずは公式リンクで確認してください。</li>" +
-          "<li>第2段階では、GitHub Actionsで data/status.json を自動作成します。</li>";
-      }
+    const items = Array.isArray(data.items) ? data.items : [];
+    if (!items.length) {
+      autoList.innerHTML = "<li class='error'><span class='badge'>未取得</span>巡回結果が空です。Actionsを確認してください。</li>";
+      return;
     }
 
-    function escapeHtml(str) {
-      return String(str).replace(/[&<>'"]/g, c => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        "'": "&#39;",
-        '"': "&quot;"
-      }[c]));
-    }
+    autoList.innerHTML = items.map(item => {
+      const cls = item.level === "alert" ? "alert" : item.level === "error" ? "error" : "ok";
+      const badge = item.level === "alert" ? "注意" : item.level === "error" ? "未取得" : "OK";
+      const label = escapeHtml(item.label || "情報源");
+      const message = escapeHtml(item.message || "確認してください");
+      const url = item.url ? String(item.url) : "#";
+      return `<li class="${cls}"><span class="badge">${badge}</span><a href="${escapeAttr(url)}">${label}</a>：${message}</li>`;
+    }).join("");
+  } catch (e) {
+    autoUpdated.textContent = "未取得";
+    autoList.innerHTML = "<li class='error'><span class='badge'>未取得</span>巡回データを読み込めません。公式リンクで確認してください。</li>";
+  }
+}
 
-    loadAutoSummary();
+function escapeHtml(str) {
+  return String(str).replace(/[&<>'"]/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"
+  }[c]));
+}
+function escapeAttr(str) {
+  return escapeHtml(str).replace(/`/g, "&#96;");
+}
 
+loadAutoSummary();
 
-    const canonicalUrl = location.origin + location.pathname;
-    const shareUrl = document.getElementById("shareUrl");
-    const qrCode = document.getElementById("qrCode");
-    if (shareUrl && qrCode) {
-      shareUrl.textContent = canonicalUrl;
-      qrCode.src = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=" + encodeURIComponent(canonicalUrl);
-    }
-
-    document.getElementById("resetChecks").addEventListener("click", () => {
-      if (!confirm("今日のチェック状態をリセットしますか？メモは残ります。")) return;
-        btn.classList.remove("done");
-        btn.textContent = btn.textContent.replace(/^✓\s*/, "");
-      });
-    });
-
-
-    document.getElementById("copyUrl").addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(canonicalUrl);
-        alert("しました。");
-      } catch (e) {
-        alert("コピーできませんでした。URL欄を長押しして選択コピーしてください。");
-      }
-    });
-
-    document.getElementById("copyMemo").addEventListener("click", async () => {
-      const text = memo.value.trim();
-      if (!text) {
-        alert("メモ欄が空です。");
-        return;
-      }
-      try {
-        await navigator.clipboard.writeText(text);
-        alert("メモをコピーしました。");
-      } catch (e) {
-        alert("コピーできませんでした。メモを長押しして選択コピーしてください。");
-      }
-    });
   </script>
 </body>
 </html>
