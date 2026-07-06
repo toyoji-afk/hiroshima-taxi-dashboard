@@ -26,6 +26,20 @@ const sources = [
     keywords: ["運休", "遅れ", "遅延", "運転見合わせ"]
   },
   {
+    id: "hiroshima-bus",
+    label: "広島バス 路線バス",
+    url: "https://hirobus-info-rosen.jp/",
+    keywords: ["通常運行", "運休", "遅延発生", "大幅遅延", "運行見合わせ", "迂回運行", "欠便"],
+    mode: "bus-operation"
+  },
+  {
+    id: "hiroshima-kotsu",
+    label: "広島交通 路線バス",
+    url: "https://www.hiroko-group.co.jp/kotsu/rosen_unkou.htm",
+    keywords: ["通常運行", "平常運行", "運休", "遅延発生", "大幅遅延", "運行見合わせ", "迂回運行", "欠便"],
+    mode: "bus-operation"
+  },
+  {
     id: "hiroshima-airport",
     label: "広島空港",
     url: "https://www.hij.airport.jp/flight/flight_da.html",
@@ -102,6 +116,7 @@ async function fetchText(url) {
   return await res.text();
 }
 
+
 function stripNoticeLikeText(text) {
   return text
     .replace(/お知らせ[\s\S]*/g, "")
@@ -117,75 +132,55 @@ function judgeBusOperation(rawText) {
   const text = stripNoticeLikeText(rawText);
 
   // 「遅延する恐れ」「可能性」「予定」「工事」などは、
-  // 乗務前チェックでは“現在の運行異常”として扱わない。
-  const uncertainPattern = /(恐れ|おそれ|可能性|予定|工事|交通規制|規制に伴|お知らせ|事前案内|予告|見込み)/;
+  // “現在発生中の異常”としては拾いすぎない。
+  const uncertainPattern = /(恐れ|おそれ|可能性|予定|工事|交通規制|規制に伴|事前案内|予告|見込み)/;
   const seriousPattern = /(運休|運転見合わせ|見合わせ|運行見合わせ|欠便|大幅な遅れ|大幅遅延|遅延発生|遅れが発生|迂回運行|運行休止|運行停止)/;
   const normalPattern = /(通常運行|平常運行|正常運行|概ね通常|おおむね通常|現在、?平常どおり|現在、?通常どおり)/;
 
   const seriousMatch = text.match(seriousPattern);
   if (seriousMatch) {
-    // 周辺文脈に「恐れ」「予定」などが強く含まれる場合は注意扱いに落とす
     const idx = text.indexOf(seriousMatch[0]);
-    const context = text.slice(Math.max(0, idx - 30), idx + 60);
+    const context = text.slice(Math.max(0, idx - 40), idx + 80);
+
     if (uncertainPattern.test(context)) {
-      return { level: "ok", message: "明確な遅延・運休情報なし。お知らせ欄は必要時確認" };
+      return {
+        level: "ok",
+        message: "明確な遅延・運休情報なし。お知らせ欄は必要時確認"
+      };
     }
-    return { level: "alert", message: "遅延・運休などの可能性あり。公式ページで確認" };
+
+    return {
+      level: "alert",
+      message: "遅延・運休などの可能性あり。公式ページで確認"
+    };
   }
 
   if (normalPattern.test(text)) {
-    return { level: "ok", message: "通常運行" };
-  }
-
-  return { level: "ok", message: "明確な遅延・運休情報なし。詳細は公式ページで確認" };
-}
-
-async function checkHiroshimaBus() {
-  const url = "https://hirobus-info-rosen.jp/";
-  try {
-    const html = await fetchText(url);
-    const result = judgeBusOperation(html);
     return {
-      label: "広島バス 路線バス",
-      url,
-      level: result.level,
-      message: result.message
-    };
-  } catch (error) {
-    return {
-      label: "広島バス 路線バス",
-      url,
-      level: "error",
-      message: "運行情報を取得できませんでした。公式ページで確認"
+      level: "ok",
+      message: "通常運行"
     };
   }
-}
 
-async function checkHiroshimaKotsuBus() {
-  const url = "https://www.hiroko-group.co.jp/kotsu/rosen_unkou.htm";
-  try {
-    const html = await fetchText(url);
-    const result = judgeBusOperation(html);
-    return {
-      label: "広島交通 路線バス",
-      url,
-      level: result.level,
-      message: result.message
-    };
-  } catch (error) {
-    return {
-      label: "広島交通 路線バス",
-      url,
-      level: "error",
-      message: "運行状況を取得できませんでした。公式ページで確認"
-    };
-  }
+  return {
+    level: "ok",
+    message: "明確な遅延・運休情報なし。詳細は公式ページで確認"
+  };
 }
-
 
 async function checkSource(source) {
   try {
     const html = await fetchText(source.url);
+
+    if (source.mode === "bus-operation") {
+      const result = judgeBusOperation(html);
+      return {
+        label: source.label,
+        url: source.url,
+        level: result.level,
+        message: result.message
+      };
+    }
     const text = stripHtml(html);
     const hits = source.keywords.filter(k => text.includes(k));
 
