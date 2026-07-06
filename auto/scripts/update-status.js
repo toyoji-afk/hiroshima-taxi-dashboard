@@ -1,4 +1,4 @@
-// update-status.js v34 JR debug + rendered text parser
+// update-status.js v35 JR debug + route boundary parser
 // Node.js 20+ / GitHub Actions
 // Optional but recommended: npm i playwright && npx playwright install --with-deps chromium
 
@@ -10,6 +10,22 @@ const OUT_PATH = path.join(process.cwd(), 'auto/data/status.json');
 const DEBUG_DIR = path.join(process.cwd(), 'auto/data/debug');
 
 const TARGET_LINES = ['山陽線', '呉線', '可部線', '芸備線'];
+const ALL_JR_CHUGOKU_LINES = [
+  '山陽線', '呉線', '可部線', '芸備線',
+  '山陰線', '伯備線', '境線', '木次線', '因美線', '姫新線',
+  '福塩線', '宇野みなと線', '瀬戸大橋線', '桃太郎線', '吉備線',
+  '赤穂線', '津山線', '宇部線', '小野田線', '美祢線', '岩徳線',
+  '山口線', '可部線', '福塩線', '呉線',
+  '東海道・山陽新幹線', '山陽新幹線', '博多南線',
+  '広島電鉄'
+];
+
+const JR_STOP_WORDS = [
+  '連絡私鉄運行情報', '山陰地区', '山陽地区', '運行情報履歴',
+  'サービス概要', '利用規約', 'よくあるご質問', '関連リンク',
+  '特急列車の遅れ', '特急列車カテゴリ'
+];
+
 const JR_STATUS_WORDS = [
   '運転見合わせ', '順次運転見合わせ', '運転取り止め', '運休',
   '遅れ', '遅延', '一部列車に遅れ', '運転再開', '運転を再開',
@@ -117,51 +133,70 @@ async function fetchRenderedText() {
   }
 }
 
-function splitIncidentBlocks(text) {
-  const t = normalizeText(text);
-  const lines = t.split('\n').map(x => x.trim()).filter(Boolean);
-  const blocks = [];
+function indexOfNextStop(t, from) {
+  const candidates = [];
 
-  // JR page often has separate cards/rows. Start a block whenever a target line appears.
-  for (let i = 0; i < lines.length; i++) {
-    if (!TARGET_LINES.includes(lines[i])) continue;
-    const start = i;
-    let end = lines.length;
-    for (let j = i + 1; j < lines.length; j++) {
-      if (TARGET_LINES.includes(lines[j])) { end = j; break; }
-      // broad area headers can also terminate cards
-      if (/^\[.+地区\]$/.test(lines[j]) && j > i + 2) { end = j; break; }
-    }
-    const body = lines.slice(start, end).join('\n');
-    blocks.push({ line: lines[i], body });
+  for (const stop of JR_STOP_WORDS) {
+    const idx = t.indexOf(stop, from);
+    if (idx >= 0) candidates.push(idx);
   }
 
-  return blocks;
+  for (const line of ALL_JR_CHUGOKU_LINES) {
+    const idx = t.indexOf(line, from);
+    if (idx >= 0) candidates.push(idx);
+  }
+
+  return candidates.length ? Math.min(...candidates) : t.length;
+}
+
+function cleanJrMemoText(s, targetLine) {
+  return compactLine(s)
+    .replace(new RegExp(`^.*?${targetLine}`), targetLine)
+    .replace(/\s*列車走行位置\s*/g, ' ')
+    .replace(/\s*詳細\s*/g, ' / ')
+    .replace(/\s+/g, ' ')
+    .replace(/\s*\/\s*$/g, '')
+    .trim();
+}
+
+function extractTargetBlock(text, targetLine) {
+  const t = compactLine(text);
+  const start = t.indexOf(targetLine);
+  if (start < 0) return '';
+
+  // Start searching after the target line name so the line itself is not treated as the next route.
+  const searchFrom = start + targetLine.length;
+  const end = indexOfNextStop(t, searchFrom);
+  return t.slice(start, end).trim();
+}
+
+function splitSameLineIncidents(block, targetLine) {
+  const cleaned = cleanJrMemoText(block, targetLine);
+  if (!cleaned) return [];
+
+  // JR can list several incidents under one long line, e.g.
+  // 山陽線 ... 区間 海田市～岩国 原因 人と接触 ... 詳細 一部列車運休・遅延 区間 三原～海田市 原因 倒木 ...
+  const parts = cleaned
+    .split(/\s+\/\s+(?=(順次運転見合わせ|運転見合わせ|一部列車運休・遅延|一部列車遅延|遅延あり|遅れ|運休|運転取り止め|運転再開|列車に遅れ))/g)
+    .filter(x => x && !JR_STATUS_WORDS.includes(x));
+
+  if (parts.length <= 1) return [cleaned];
+
+  return parts.map((part, i) => {
+    const p = part.trim();
+    return i === 0 && p.startsWith(targetLine) ? p : `${targetLine} ${p}`;
+  });
 }
 
 function extractLineStatus(text, targetLine) {
-  const blocks = splitIncidentBlocks(text).filter(b => b.line === targetLine);
-  const abnormal = [];
+  const block = extractTargetBlock(text, targetLine);
+  console.log(`\n[JR DEBUG] bounded block ${targetLine}:`);
+  console.log(block || '(not found)');
 
-  for (const b of blocks) {
-    const one = compactLine(b.body);
-    if (JR_STATUS_WORDS.some(w => one.includes(w))) {
-      abnormal.push(one);
-    }
-  }
+  const one = cleanJrMemoText(block, targetLine);
+  const isAbnormal = JR_STATUS_WORDS.some(w => one.includes(w));
 
-  // Fallback: fixed window around every occurrence of line name.
-  if (abnormal.length === 0) {
-    const t = normalizeText(text);
-    let pos = 0;
-    while ((pos = t.indexOf(targetLine, pos)) >= 0) {
-      const win = compactLine(t.slice(Math.max(0, pos - 200), pos + 1000));
-      if (JR_STATUS_WORDS.some(w => win.includes(w))) abnormal.push(win);
-      pos += targetLine.length;
-    }
-  }
-
-  if (abnormal.length === 0) {
+  if (!block || !isAbnormal) {
     return {
       name: targetLine,
       status: '平常運転',
@@ -171,9 +206,8 @@ function extractLineStatus(text, targetLine) {
     };
   }
 
-  // Same line can have multiple incidents. Keep them separated.
-  const unique = [...new Set(abnormal)]
-    .map(s => s.replace(/^.*?(山陽線|呉線|可部線|芸備線)/, '$1'))
+  const unique = [...new Set(splitSameLineIncidents(block, targetLine))]
+    .filter(s => JR_STATUS_WORDS.some(w => s.includes(w)))
     .slice(0, 4);
 
   return {
@@ -210,7 +244,7 @@ async function main() {
   const output = {
     updated_at: nowIsoJst(),
     items: jrStatuses,
-    debug_note: 'v34 JR debug standalone. Merge getJrStatuses()/extractLineStatus() into existing update-status.js after verification.'
+    debug_note: 'v35 JR boundary parser standalone. It stops a target route at the next JR route/section/footer word.'
   };
 
   fs.writeFileSync(OUT_PATH, JSON.stringify(output, null, 2), 'utf8');
