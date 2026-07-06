@@ -278,6 +278,37 @@ footer {
   }
 }
 
+
+/* v25 auto memo readability */
+.auto-list li {
+  font-size: 17px !important;
+  line-height: 1.5 !important;
+}
+.auto-source {
+  font-size: 20px !important;
+  font-weight: 800 !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px !important;
+  color: var(--text) !important;
+}
+.auto-message {
+  display: inline;
+  margin-left: 2px;
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Times New Roman", serif;
+  font-size: 16px !important;
+  font-weight: 500;
+  color: #d7deee;
+  letter-spacing: .01em;
+}
+@media (max-width: 420px) {
+  .auto-source {
+    font-size: 19px !important;
+  }
+  .auto-message {
+    font-size: 15.5px !important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -373,7 +404,7 @@ footer {
       </div>
     </section>
 
-    <footer>第24版：大きめ文字・リンク2件修正</footer>
+    <footer>第25版：自動巡回メモ読みやすさ調整</footer>
   </main>
 
   <nav class="bottom-nav" aria-label="主要メニュー">
@@ -450,7 +481,10 @@ async function loadAutoSummary() {
       const label = escapeHtml(item.label || "情報源");
       const message = escapeHtml(item.message || "確認してください");
       const url = item.url ? String(item.url) : "#";
-      return `<li class="${cls}"><span class="badge">${badge}</span><a href="${escapeAttr(url)}">${label}</a>：${message}</li>`;
+      const shortMessage = message
+        .replace(/要確認キーワードあり/g, "要確認あり")
+        .replace(/キーワードあり/g, "あり");
+      return `<li class="${cls}"><span class="badge">${badge}</span><a class="auto-source" href="${escapeAttr(url)}">${label}</a><span class="auto-message">：${shortMessage}</span></li>`;
     }).join("");
   } catch (e) {
     autoUpdated.textContent = "未取得";
