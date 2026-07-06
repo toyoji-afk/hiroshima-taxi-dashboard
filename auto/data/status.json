@@ -1,34 +1,106 @@
 {
-  "updated_at": "2026-07-06T14:55:00+09:00",
+  "updated_at": "2026-07-06T15:08:42+09:00",
+  "generated_at": "2026-07-06T15:08:42+09:00",
   "items": [
     {
+      "name": "広島市周辺天気",
+      "title": "広島市周辺天気",
+      "status": "注意",
+      "memo": "広島市周辺天気：弱い霧雨　現在25.2℃　最高26.2℃／最低23.3℃　降水確率100%　風5.4m/s　注意：降水確率100%・現在降水0.1mm",
+      "url": "https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=340000",
+      "source": "https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=340000",
+      "updated_at": "2026-07-06T15:08:30+09:00"
+    },
+    {
       "name": "山陽線",
+      "title": "山陽線",
       "status": "要確認",
       "memo": "山陽線：運休・遅延 区間 糸崎～岩国 原因：倒木 原因 人と接触（07/06 14:45更新）",
+      "url": "https://trafficinfo.westjr.co.jp/chugoku.html",
       "source": "https://trafficinfo.westjr.co.jp/chugoku.html",
-      "updated_at": "2026-07-06T14:55:00+09:00"
+      "updated_at": "2026-07-06T15:08:36+09:00"
     },
     {
       "name": "呉線",
+      "title": "呉線",
       "status": "要確認",
       "memo": "呉線：運休 区間 呉～広島 原因：倒木 原因 人と接触（07/06 14:45更新）",
+      "url": "https://trafficinfo.westjr.co.jp/chugoku.html",
       "source": "https://trafficinfo.westjr.co.jp/chugoku.html",
-      "updated_at": "2026-07-06T14:55:00+09:00"
+      "updated_at": "2026-07-06T15:08:36+09:00"
     },
     {
       "name": "可部線",
+      "title": "可部線",
       "status": "平常運転",
       "memo": "可部線：平常運転",
+      "url": "https://trafficinfo.westjr.co.jp/chugoku.html",
       "source": "https://trafficinfo.westjr.co.jp/chugoku.html",
-      "updated_at": "2026-07-06T14:55:00+09:00"
+      "updated_at": "2026-07-06T15:08:36+09:00"
     },
     {
       "name": "芸備線",
+      "title": "芸備線",
       "status": "平常運転",
       "memo": "芸備線：平常運転",
+      "url": "https://trafficinfo.westjr.co.jp/chugoku.html",
       "source": "https://trafficinfo.westjr.co.jp/chugoku.html",
-      "updated_at": "2026-07-06T14:55:00+09:00"
+      "updated_at": "2026-07-06T15:08:36+09:00"
+    },
+    {
+      "name": "広島電鉄",
+      "title": "広島電鉄",
+      "status": "平常運転",
+      "memo": "広島電鉄：平常・大きな乱れ情報なし",
+      "url": "https://www.hiroden.co.jp/traffic/info/",
+      "source": "https://www.hiroden.co.jp/traffic/info/",
+      "updated_at": "2026-07-06T15:08:37+09:00"
+    },
+    {
+      "name": "広島バス 路線バス",
+      "title": "広島バス 路線バス",
+      "status": "平常運転",
+      "memo": "広島バス 路線バス：平常・大きな乱れ情報なし",
+      "url": "https://hirobus-info-rosen.jp/",
+      "source": "https://hirobus-info-rosen.jp/",
+      "updated_at": "2026-07-06T15:08:38+09:00"
+    },
+    {
+      "name": "広島交通 路線バス",
+      "title": "広島交通 路線バス",
+      "status": "確認",
+      "memo": "広島交通 路線バス：公式運行状況ページを確認（掲載障害なし想定）",
+      "url": "https://www.hiroko-group.co.jp/kotsu/rosen_unkou.htm",
+      "source": "https://www.hiroko-group.co.jp/kotsu/rosen_unkou.htm",
+      "updated_at": "2026-07-06T15:08:39+09:00"
+    },
+    {
+      "name": "広島空港",
+      "title": "広島空港",
+      "status": "確認",
+      "memo": "広島空港：大きな欠航・遅延表示なし想定。空港送迎前は公式フライト情報を確認",
+      "url": "https://www.hij.airport.jp/flight/flight_dd.html",
+      "source": "https://www.hij.airport.jp/flight/flight_dd.html",
+      "updated_at": "2026-07-06T15:08:40+09:00"
+    },
+    {
+      "name": "カープ本拠地開催",
+      "title": "カープ本拠地開催",
+      "status": "平常",
+      "memo": "カープ本拠地開催：本日7月6日の本拠地開催は検出なし",
+      "url": "https://www.ticket.carp.co.jp/calendar/",
+      "source": "https://www.ticket.carp.co.jp/calendar/",
+      "updated_at": "2026-07-06T15:08:41+09:00"
+    },
+    {
+      "name": "サンフレッチェ広島開催",
+      "title": "サンフレッチェ広島開催",
+      "status": "平常",
+      "memo": "サンフレッチェ広島開催：本日7月6日の本拠地開催は検出なし",
+      "url": "https://www.sanfrecce.co.jp/matches/results",
+      "source": "https://www.sanfrecce.co.jp/matches/results",
+      "updated_at": "2026-07-06T15:08:42+09:00"
     }
   ],
-  "debug_note": "v37 JR linewise parser. not found => 平常運転. Multiple incidents preserved. JR noise words removed."
+  "memo": "広島市周辺天気：弱い霧雨　現在25.2℃　最高26.2℃／最低23.3℃　降水確率100%　風5.4m/s　注意：降水確率100%・現在降水0.1mm\n山陽線：運休・遅延 区間 糸崎～岩国 原因：倒木 原因 人と接触（07/06 14:45更新）\n呉線：運休 区間 呉～広島 原因：倒木 原因 人と接触（07/06 14:45更新）\n可部線：平常運転\n芸備線：平常運転\n広島電鉄：平常・大きな乱れ情報なし\n広島バス 路線バス：平常・大きな乱れ情報なし\n広島交通 路線バス：公式運行状況ページを確認（掲載障害なし想定）\n広島空港：大きな欠航・遅延表示なし想定。空港送迎前は公式フライト情報を確認\nカープ本拠地開催：本日7月6日の本拠地開催は検出なし\nサンフレッチェ広島開催：本日7月6日の本拠地開催は検出なし"
 }
