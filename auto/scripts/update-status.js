@@ -690,6 +690,32 @@ function makeHirodenOperationText(items) {
   return parts.join(' ／ ');
 }
 
+
+function hasHirodenNoInfoText(text) {
+  const t = compactText(text);
+
+  // 広電ページの平常時文言は「ありません」だけでなく
+  // 「お知らせする情報がございません」系になることがあります。
+  // 冒頭説明文には「運行を中止」「大幅な遅れ」が常に含まれるため、
+  // 先にこの平常文を拾っておかないと説明文を注意扱いしてしまいます。
+  return [
+    'お知らせする情報がございません',
+    'お知らせする情報はございません',
+    '運行情報がございません',
+    '運行情報はございません',
+    '現在お知らせする情報がございません',
+    '現在お知らせする情報はございません',
+    '現在お知らせする運行情報がございません',
+    '現在お知らせする運行情報はございません',
+    '現在お知らせする情報はありません',
+    '現在、運行情報はありません',
+    '現在、お知らせする情報はありません',
+    '現在情報はありません',
+  ].some(w => t.includes(w)) ||
+    /現在[、,\s]*(?:お知らせする)?(?:運行)?情報[がは]?(?:ございません|ありません)/.test(t) ||
+    /(?:お知らせする)?(?:運行)?情報[がは](?:ございません|ありません)/.test(t);
+}
+
 function extractHirodenOperations(text) {
   const raw = compactText(text);
 
@@ -700,7 +726,15 @@ function extractHirodenOperations(text) {
   if (currentIdx >= 0) body = body.slice(currentIdx);
 
   // 本当に情報がない場合の文言。
-  if (/現在(お知らせする)?運行情報はありません|現在、お知らせする情報はありません|現在情報はありません/.test(body)) {
+  // 「ございません」系も平常として扱う。
+  if (hasHirodenNoInfoText(body) || hasHirodenNoInfoText(raw)) {
+    return '';
+  }
+
+  // 日時付きの運行障害エントリが1件もない場合は、冒頭説明文の
+  // 「運行を中止」「大幅な遅れ」だけに反応しないよう平常扱いにする。
+  const hasDatedAbnormalEntry = /(20\d{2}\/\d{1,2}\/\d{1,2})\s+\d{1,2}:\d{2}\s+更新\s+(遅延|運休|運転見合わせ|運行見合わせ|一部運休|迂回|通行止め|ダイヤ乱れ)/.test(body);
+  if (!hasDatedAbnormalEntry) {
     return '';
   }
 
