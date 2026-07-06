@@ -300,7 +300,7 @@ footer {
     </section>
 
     <footer>
-      第29版：リンク集JSON分離版<br>
+      第44版：JR・空港表示調整版<br>
       非公式・個人用ダッシュボード / © 2026 Toyoji Yamamoto
     </footer>
   </main>
@@ -442,11 +442,6 @@ async function loadAutoSummary() {
       return { cls: "error", badge: "未取得" };
     }
 
-    const explicitAlertWords = ["alert", "warning", "注意", "要確認", "not-ok"];
-    if (explicitAlertWords.some(w => haystack.includes(w))) {
-      return { cls: "alert", badge: "注意" };
-    }
-
     const normalWords = [
       "平常運転",
       "平常・大きな乱れ情報なし",
@@ -454,10 +449,17 @@ async function loadAutoSummary() {
       "大きな欠航・遅延表示なし",
       "表示なし",
       "検出なし",
-      "本拠地開催は検出なし"
+      "本拠地開催は検出なし",
+      "通常運行",
+      "通常通り"
     ];
     if (normalWords.some(w => haystack.includes(w))) {
       return { cls: "ok", badge: "OK" };
+    }
+
+    const explicitRawAlert = ["alert", "warning", "注意", "要確認", "not-ok"];
+    if (explicitRawAlert.some(w => raw.includes(w))) {
+      return { cls: "alert", badge: "注意" };
     }
 
     const transportAlertWords = [
