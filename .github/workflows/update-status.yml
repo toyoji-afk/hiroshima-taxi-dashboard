@@ -5,7 +5,7 @@ on:
   schedule:
     # JST 00:00 / 06:00 / 12:00 / 18:00
     # GitHub Actions cron is UTC, so this is JST-9.
-    - cron: "0 15,21,3,9 * * *"
+    - cron: "0 0,3,6,9,12,15,21 * * *"
 
 permissions:
   contents: write
