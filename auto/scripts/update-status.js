@@ -1,4 +1,4 @@
-// update-status.js v51: Open-Meteo Hiroshima-center weather + Hiroden cache/update-time fix + JR stable version
+// update-status.js v58: Open-Meteo + JR/Hiroden stable + event fixes + stronger Carp detection
 // 広島市タクシーダッシュボード：本日の自動巡回メモ生成
 // Node.js 20+ / GitHub Actions
 //
@@ -949,22 +949,63 @@ function extractDateSectionByNextDate(text, today = todayJstParts(), radius = 90
 }
 
 function extractNpbCarpHomeGame(text, today = todayJstParts()) {
-  const section = extractDateSectionByNextDate(text, today, 1200);
-  if (!section) return null;
+  const t = compactText(text);
+  const day = Number(today.day);
+  const month = Number(today.month);
 
-  // NPB月別ページでは、7/7の下に「広島 - ヤクルト マツダスタジアム 18:00」のように並ぶ。
-  const hasHome = /広島\s*[-－ー]\s*[^ ]+/.test(section) &&
-    /マツダスタジアム|MAZDA|Zoom-Zoom|ズムスタ/.test(section);
+  // NPB公式ページはHTMLからテキスト化した時に、
+  // 「広島 - ヤクルト マツダスタジアム 18:00」のように綺麗に並ばないことがあります。
+  // そのため、当日見出し近辺の広めの範囲で「マツダスタジアム」「広島」「時刻」を見る。
+  const datePatterns = [
+    today.ymdHyphen,
+    today.ymdSlash,
+    `${month}/${day}`,
+    `${month}.${day}`,
+    `${month}月${day}日`,
+    `${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`,
+    `${String(month).padStart(2, '0')}.${String(day).padStart(2, '0')}`,
+  ];
 
-  if (!hasHome) return null;
+  const indexes = datePatterns
+    .map(p => t.indexOf(p))
+    .filter(i => i >= 0);
 
-  const opponent = (section.match(/広島\s*[-－ー]\s*([^\s]+)\s+(?:マツダスタジアム|MAZDA|Zoom-Zoom|ズムスタ)/) || [])[1] ||
-    (section.match(/広島\s*[-－ー]\s*([^\s]+)/) || [])[1] || '';
+  if (!indexes.length) return null;
 
+  const start = Math.min(...indexes);
+
+  // 次の日付見出しまでを当日範囲にする。
+  // ただし同じ日付文字列の残りを誤って拾わないよう、少し後ろから探す。
+  const restStart = Math.min(t.length, start + 30);
+  const rest = t.slice(restStart);
+  const nextDateMatch = rest.search(/\b\d{1,2}[\/.]\d{1,2}(?:[（(][月火水木金土日][）)])?|\d{1,2}月\d{1,2}日/);
+  const end = nextDateMatch >= 0 ? restStart + nextDateMatch : Math.min(t.length, start + 3500);
+  const section = t.slice(start, end).trim();
+
+  const hasMazda = /マツダスタジアム|MAZDA|Zoom-Zoom|ズムスタ/i.test(section);
+  const hasHiroshima = /広島/.test(section);
   const time = (section.match(/\b\d{1,2}:\d{2}\b/) || [])[0] || '';
 
+  if (!hasMazda || !hasHiroshima || !time) return null;
+
+  // 対戦相手は取れれば取る。取れなくても本拠地開催としては検出する。
+  const teams = ['ヤクルト', '巨人', '阪神', 'DeNA', 'ＤｅＮＡ', '中日', '広島',
+                 '日本ハム', '楽天', '西武', 'ロッテ', 'オリックス', 'ソフトバンク'];
+  let opponent = '';
+
+  // 「広島 ... ヤクルト」または「ヤクルト ... 広島」を広めに見る。
+  for (const team of teams) {
+    if (team === '広島') continue;
+    const re1 = new RegExp(`広島.{0,80}${team}`);
+    const re2 = new RegExp(`${team}.{0,80}広島`);
+    if (re1.test(section) || re2.test(section)) {
+      opponent = team.replace('ＤｅＮＡ', 'DeNA');
+      break;
+    }
+  }
+
   return {
-    opponent: opponent.replace(/[|｜].*$/, '').trim(),
+    opponent,
     time,
     section,
   };
@@ -1025,7 +1066,7 @@ async function getCarpStatus() {
     if (game) {
       return makeItem(
         name,
-        `本日${today.mdKanji} マツダスタジアム開催：広島－${game.opponent || '対戦相手確認'}${game.time ? `（${game.time}）` : ''}。広島駅・球場周辺の混雑に注意`,
+        `本日${today.mdKanji} マツダスタジアム開催${game.opponent ? `：広島－${game.opponent}` : 'あり'}${game.time ? `（${game.time}）` : ''}。広島駅・球場周辺の混雑に注意`,
         '要確認',
         npbUrl
       );
