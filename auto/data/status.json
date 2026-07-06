@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-07-06T00:47:30.182Z",
-  "updatedAtJst": "2026/07/06(月) 09:47",
+  "updatedAt": "2026-07-06T00:54:22.105Z",
+  "updatedAtJst": "2026/07/06(月) 09:54",
   "scheduleNote": "JST 00:00 / 06:00 / 12:00 / 18:00 目安で更新",
   "items": [
     {
@@ -31,13 +31,13 @@
       "label": "広島電鉄",
       "url": "https://www.hiroden.co.jp/traffic/info/",
       "level": "alert",
-      "message": "5号線運休等／6号線運休等／2号線運休等｜全体：要確認キーワードあり：遅れ、遅延"
+      "message": "5号線○／6号線○／2号線運休等｜全体：要確認キーワードあり：遅れ、遅延"
     },
     {
       "label": "広島バス 路線バス",
       "url": "https://hirobus-info-rosen.jp/",
-      "level": "alert",
-      "message": "遅延・運休などの可能性あり。公式ページで確認"
+      "level": "ok",
+      "message": "通常運行"
     },
     {
       "label": "広島交通 路線バス",
