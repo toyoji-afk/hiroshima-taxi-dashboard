@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>広島タクシー乗務前チェック</title>
+  <title>広島市タクシーダッシュボード</title>
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
   <link rel="manifest" href="manifest.webmanifest">
@@ -160,11 +160,6 @@ button, .action-link {
   text-decoration: none;
   font-size: 14px;
 }
-.bottom-actions {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0;
-}
 .qr-wrap {
   display: grid;
   grid-template-columns: 112px 1fr;
@@ -213,7 +208,6 @@ footer {
 }
 @media (min-width: 720px) {
   .link-list { grid-template-columns: 1fr 1fr; }
-  .bottom-actions { grid-template-columns: 1fr 1fr; gap: 8px; }
 }
 </style>
 </head>
@@ -222,7 +216,7 @@ footer {
     <header>
       <img class="logo" src="assets/tsubame-icon-192.png" alt="">
       <div>
-        <h1>広島タクシー乗務前チェック</h1>
+        <h1>広島市タクシーダッシュボード</h1>
         <div id="today" class="today">今日の日付を読み込み中</div>
       </div>
     </header>
@@ -234,9 +228,8 @@ footer {
   <div class="link-list">
     <a class="link-row" href="https://www.jartic.or.jp/map/?p=R34">JARTIC 広島<span>開く</span></a>
     <a class="link-row" href="https://www.roadnavi.pref.hiroshima.lg.jp/">ひろしま道路ナビ<span>開く</span></a>
-    <a class="link-row" href="https://www.roadnavi.pref.hiroshima.lg.jp/roadcam/">広島県道路カメラ<span>開く</span></a>
-    <a class="link-row" href="https://www.h-exp.or.jp/">広島高速道路公社<span>開く</span></a>
-    <a class="link-row" href="https://www.city.hiroshima.lg.jp/">広島市 通行規制情報<span>開く</span></a>
+    <a class="link-row" href="https://www.h-exp.or.jp/koutsu/">広島高速道路公社 道路交通情報<span>開く</span></a>
+    <a class="link-row" href="https://www.city.hiroshima.lg.jp/living/doro-kotsu-kasen/1021384/1026405/1026406/index.html">広島市 通行規制情報<span>開く</span></a>
     <a class="link-row" href="https://www.pref.hiroshima.lg.jp/site/police/">広島県警察<span>開く</span></a>
   </div>
 </section>
@@ -245,8 +238,8 @@ footer {
   <div class="link-list">
     <a class="link-row" href="https://trafficinfo.westjr.co.jp/chugoku.html">JR西日本 中国エリア<span>開く</span></a>
     <a class="link-row" href="https://www.hiroden.co.jp/traffic/info/">広島電鉄 運行情報<span>開く</span></a>
-    <a class="link-row" href="https://www.hiroden.co.jp/bus/">広電バス情報<span>開く</span></a>
     <a class="link-row" href="https://hirobus-info-rosen.jp/">広島バス情報<span>開く</span></a>
+    <a class="link-row" href="https://www.hiroko-group.co.jp/kotsu/rosen_unkou.htm">広島交通 運行状況<span>開く</span></a>
     <a class="link-row" href="https://www.h-buscenter.com/smp/operation_info/">広島バスセンター 出発便運行情報<span>開く</span></a>
   </div>
 </section>
@@ -264,9 +257,9 @@ footer {
   <div class="link-list">
     <a class="link-row" href="https://www.ticket.carp.co.jp/calendar/">カープ 日程<span>開く</span></a>
     <a class="link-row" href="https://www.sanfrecce.co.jp/matches/results">サンフレッチェ 日程・結果<span>開く</span></a>
-    <a class="link-row" href="https://www.rcchall.jp/hall/schedule">上野学園ホール 公演スケジュール<span>開く</span></a>
-    <a class="link-row" href="https://h-bkk.jp/hall/schedule/">HBGホール 月間スケジュール<span>開く</span></a>
-    <a class="link-row" href="https://www.pcf.city.hiroshima.jp/icch/event/">国際会議場 イベント<span>開く</span></a>
+    <a class="link-row" href="https://www.rcchall.jp/hall/entertain/">上野学園ホール 公演スケジュール<span>開く</span></a>
+    <a class="link-row" href="https://h-bkk.jp/hall/calendar/">HBGホール 月間スケジュール<span>開く</span></a>
+    <a class="link-row" href="https://www.bcf.city.hiroshima.jp/icch/event.cgi">国際会議場 イベント<span>開く</span></a>
     <a class="link-row" href="https://h-jigyoudan.or.jp/sports-center/">グリーンアリーナ<span>開く</span></a>
     <a class="link-row" href="https://dive-hiroshima.com/">Dive! Hiroshima<span>開く</span></a>
   </div>
@@ -275,8 +268,8 @@ footer {
   <h2>業務・会社</h2>
   <div class="link-list">
     <a class="link-row" href="https://www.tsubame.co.jp/">ツバメ交通<span>開く</span></a>
-    <a class="link-row" href="https://go.goinc.jp/area/hiroshima/">GO 対応エリア<span>開く</span></a>
-    <a class="link-row" href="https://www.uber.com/jp/ja/ride/">Uber タクシー 広島<span>開く</span></a>
+    <a class="link-row" href="https://go.goinc.jp/">GO<span>開く</span></a>
+    <a class="link-row" href="https://www.uber.com/jp/ja/ride/">Uber<span>開く</span></a>
   </div>
 </section>
 
@@ -288,7 +281,6 @@ footer {
 
     <section class="bottom-actions">
       <a class="action-link" href="auto/">自動巡回版を開く</a>
-      <a class="action-link" href="#memo">今日のメモへ</a>
     </section>
 
     <section class="qr-box">
@@ -302,9 +294,7 @@ footer {
       </div>
     </section>
 
-    <footer>
-      第22版：指定リンク構成・QRコード復活
-    </footer>
+    <footer>第23版：リンク修正・広島バス取得安定化</footer>
   </main>
 
   <nav class="bottom-nav" aria-label="主要メニュー">
@@ -318,10 +308,11 @@ footer {
 
 const pad = n => String(n).padStart(2, "0");
 const now = new Date();
-const weekdays = ["日","月","火","水","木","金","土"];
+const weekdays = ["日","月","火","水","木","土"];
+const trueWeekdays = ["日","月","火","水","木","金","土"];
 const todayKey = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
 document.getElementById("today").textContent =
-  `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${weekdays[now.getDay()]}）`;
+  `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${trueWeekdays[now.getDay()]}）`;
 
 const memoKey = `hiroshimaTaxiDash:memo:${todayKey}`;
 const memo = document.getElementById("memo");
