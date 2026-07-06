@@ -412,6 +412,65 @@ async function loadAutoSummary() {
   const autoUpdated = document.getElementById("autoUpdated");
   if (!autoList || !autoUpdated) return;
 
+  const pick = (item, keys, fallback = "") => {
+    for (const key of keys) {
+      if (item && item[key] !== undefined && item[key] !== null && String(item[key]).trim() !== "") {
+        return String(item[key]);
+      }
+    }
+    return fallback;
+  };
+
+  const judgeItem = (item) => {
+    const raw = [
+      item.level,
+      item.status,
+      item.state,
+      item.badge,
+      item.result,
+      item.ok === false ? "not-ok" : "",
+      item.alert === true ? "alert" : "",
+      item.error === true ? "error" : ""
+    ].filter(v => v !== undefined && v !== null).join(" ");
+
+    const label = pick(item, ["label", "title", "name", "source"], "情報源");
+    const message = pick(item, ["message", "text", "detail", "summary", "memo", "description"], "確認してください");
+    const haystack = `${raw} ${label} ${message}`;
+
+    const errorWords = ["error", "未取得", "取得失敗", "読み込めません", "not found", "status.json not found"];
+    if (errorWords.some(w => haystack.includes(w))) {
+      return { cls: "error", badge: "未取得" };
+    }
+
+    const explicitAlertWords = ["alert", "warning", "注意", "要確認", "not-ok"];
+    if (explicitAlertWords.some(w => haystack.includes(w))) {
+      return { cls: "alert", badge: "注意" };
+    }
+
+    const normalWords = [
+      "平常運転",
+      "平常・大きな乱れ情報なし",
+      "大きな乱れ情報なし",
+      "大きな欠航・遅延表示なし",
+      "表示なし",
+      "検出なし",
+      "本拠地開催は検出なし"
+    ];
+    if (normalWords.some(w => haystack.includes(w))) {
+      return { cls: "ok", badge: "OK" };
+    }
+
+    const transportAlertWords = [
+      "運休", "遅延", "見合わせ", "運転見合わせ", "一部列車運休",
+      "通行止", "規制", "事故", "渋滞", "欠航", "条件付き", "引き返し"
+    ];
+    if (transportAlertWords.some(w => haystack.includes(w))) {
+      return { cls: "alert", badge: "注意" };
+    }
+
+    return { cls: "ok", badge: "OK" };
+  };
+
   try {
     const pathParts = location.pathname.split("/").filter(Boolean);
     const repoName = pathParts[0] || "hiroshima-taxi-dashboard";
@@ -424,24 +483,30 @@ async function loadAutoSummary() {
     if (!res.ok) throw new Error("status.json not found");
 
     const data = await res.json();
-    const updated = data.updatedAtJst || data.updatedAt || "更新時刻不明";
+    const updated = data.updatedAtJst || data.updatedAt || data.generatedAt || "更新時刻不明";
     autoUpdated.textContent = "更新: " + updated;
 
-    const items = Array.isArray(data.items) ? data.items : [];
+    const items = Array.isArray(data.items)
+      ? data.items
+      : Array.isArray(data.results)
+        ? data.results
+        : Array.isArray(data.statuses)
+          ? data.statuses
+          : [];
+
     if (!items.length) {
       autoList.innerHTML = "<li class='error'><span class='badge'>未取得</span>巡回結果が空です。Actionsを確認してください。</li>";
       return;
     }
 
     autoList.innerHTML = items.map(item => {
-      const cls = item.level === "alert" ? "alert" : item.level === "error" ? "error" : "ok";
-      const badge = item.level === "alert" ? "注意" : item.level === "error" ? "未取得" : "OK";
-      const label = escapeHtml(item.label || "情報源");
-      const message = escapeHtml(item.message || "確認してください")
+      const judged = judgeItem(item);
+      const label = escapeHtml(pick(item, ["label", "title", "name", "source"], "情報源"));
+      const message = escapeHtml(pick(item, ["message", "text", "detail", "summary", "memo", "description"], "確認してください"))
         .replace(/要確認キーワードあり/g, "要確認あり")
         .replace(/キーワードあり/g, "あり");
-      const url = item.url ? String(item.url) : "#";
-      return `<li class="${cls}"><span class="badge">${badge}</span><a class="auto-source" href="${escapeAttr(url)}">${label}</a><span class="auto-message">：${message}</span></li>`;
+      const url = pick(item, ["url", "link", "href", "source_url"], "#");
+      return `<li class="${judged.cls}"><span class="badge">${judged.badge}</span><a class="auto-source" href="${escapeAttr(url)}">${label}</a><span class="auto-message">：${message}</span></li>`;
     }).join("");
   } catch (e) {
     autoUpdated.textContent = "未取得";
