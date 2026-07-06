@@ -1,0 +1,128 @@
+[
+  {
+    "category": "道路・規制",
+    "id": "road",
+    "links": [
+      {
+        "title": "JARTIC 広島",
+        "url": "https://www.jartic.or.jp/map/?p=R34"
+      },
+      {
+        "title": "ひろしま道路ナビ",
+        "url": "https://www.roadnavi.pref.hiroshima.lg.jp/"
+      },
+      {
+        "title": "広島高速道路公社 道路交通情報",
+        "url": "https://www.h-exp.or.jp/koutsu/"
+      },
+      {
+        "title": "広島市 通行規制情報",
+        "url": "https://www.city.hiroshima.lg.jp/living/doro-kotsu-kasen/1021384/1026405/1026406/index.html"
+      },
+      {
+        "title": "広島県警察",
+        "url": "https://www.pref.hiroshima.lg.jp/site/police/"
+      }
+    ]
+  },
+  {
+    "category": "鉄道・バス",
+    "id": "railbus",
+    "links": [
+      {
+        "title": "JR西日本 中国エリア",
+        "url": "https://trafficinfo.westjr.co.jp/chugoku.html"
+      },
+      {
+        "title": "広島電鉄 運行情報",
+        "url": "https://www.hiroden.co.jp/traffic/info/"
+      },
+      {
+        "title": "広島バス情報",
+        "url": "https://hirobus-info-rosen.jp/"
+      },
+      {
+        "title": "広島交通 運行状況",
+        "url": "https://www.hiroko-group.co.jp/kotsu/rosen_unkou.htm"
+      },
+      {
+        "title": "広島バスセンター 出発便運行情報",
+        "url": "https://www.h-buscenter.com/smp/operation_info/"
+      }
+    ]
+  },
+  {
+    "category": "空港",
+    "id": "airport",
+    "links": [
+      {
+        "title": "広島空港 国内線 出発",
+        "url": "https://www.hij.airport.jp/flight/flight_dd.html"
+      },
+      {
+        "title": "広島空港 国内線 到着",
+        "url": "https://www.hij.airport.jp/flight/flight_da.html"
+      },
+      {
+        "title": "広島空港 国際線 出発",
+        "url": "https://www.hij.airport.jp/flight/flight_id.html"
+      },
+      {
+        "title": "広島空港 国際線 到着",
+        "url": "https://www.hij.airport.jp/flight/flight_ia.html"
+      }
+    ]
+  },
+  {
+    "category": "イベント・需要予測",
+    "id": "events",
+    "links": [
+      {
+        "title": "カープ 日程",
+        "url": "https://www.ticket.carp.co.jp/calendar/"
+      },
+      {
+        "title": "サンフレッチェ 日程・結果",
+        "url": "https://www.sanfrecce.co.jp/matches/results"
+      },
+      {
+        "title": "上野学園ホール 公演スケジュール",
+        "url": "https://www.rcchall.jp/hall/entertainments/"
+      },
+      {
+        "title": "HBGホール 月間スケジュール",
+        "url": "https://h-bkk.jp/hall/calendar/"
+      },
+      {
+        "title": "国際会議場 イベント",
+        "url": "https://www.pcf.city.hiroshima.jp/icch/event.cgi"
+      },
+      {
+        "title": "グリーンアリーナ",
+        "url": "https://h-jigyoudan.or.jp/sports-center/"
+      },
+      {
+        "title": "Dive! Hiroshima",
+        "url": "https://dive-hiroshima.com/"
+      }
+    ]
+  },
+  {
+    "category": "業務・会社",
+    "id": "work",
+    "links": [
+      {
+        "title": "ツバメ交通",
+        "url": "https://www.tsubame.co.jp/"
+      },
+      {
+        "title": "GO",
+        "url": "https://go.goinc.jp/"
+      },
+      {
+        "title": "Uber",
+        "url": "https://www.uber.com/jp/ja/ride/"
+      }
+    ]
+  }
+]
