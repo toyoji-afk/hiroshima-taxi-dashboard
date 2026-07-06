@@ -137,6 +137,7 @@ async function fetchText(url) {
 
 
 
+
 const jrLocalLines = [
   {
     id: "jr-sanyo",
@@ -168,87 +169,102 @@ function normalizeJrText(html) {
   return stripHtml(html)
     .replace(/&nbsp;/g, " ")
     .replace(/。/g, "。\n")
-    .replace(/(【[^】]+】)/g, "\n$1")
+    .replace(/(【[^】]+】)/g, "\n$1\n")
+    .replace(/(〖[^〗]+〗)/g, "\n$1\n")
+    .replace(/(20\d{2}\/\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2})/g, "\n$1 ")
     .replace(/(山陽線|山陽本線|呉線|可部線|芸備線)/g, "\n$1")
-    .replace(/(順次運転見合わせ|運転見合わせ|運転取り止め|運休|徐行運転|遅延|遅れ|再開見込|再開見込み|区間|原因|理由)/g, "\n$1")
+    .replace(/(順次運転見合わせ|運転見合わせ|運転取り止め|運休|徐行運転|遅延|遅れ|再開見込|再開見込み|区間|原因|理由|影響)/g, "\n$1")
     .replace(/\s+/g, " ")
     .split(/\n/)
     .map(s => s.trim())
     .filter(Boolean);
 }
 
-function splitJrIncidentRecords(lines) {
-  const joined = lines.join("\n");
-
-  // JRページでは、異常情報が「路線名」または「状況語」を起点に並ぶことが多い。
-  // 同一路線に複数情報がある場合も、それぞれ別レコードとして扱う。
-  const chunks = joined
-    .replace(/\n(?=(山陽線|山陽本線|呉線|可部線|芸備線)\b)/g, "\n@@REC@@")
-    .replace(/\n(?=(順次運転見合わせ|運転見合わせ|運転取り止め|運休|徐行運転|遅延)\b)/g, "\n@@REC@@")
-    .split("@@REC@@")
-    .map(s => s.replace(/\s+/g, " ").trim())
-    .filter(Boolean);
-
-  // 断片が短すぎる場合に備えて、前後も少し結合する。
-  const records = [];
-  for (let i = 0; i < chunks.length; i++) {
-    const current = chunks[i];
-    const next = chunks[i + 1] || "";
-    const prev = chunks[i - 1] || "";
-
-    let rec = current;
-    if (!/(山陽線|山陽本線|呉線|可部線|芸備線)/.test(rec) && /(山陽線|山陽本線|呉線|可部線|芸備線)/.test(prev)) {
-      rec = `${prev} ${rec}`;
-    }
-    if (/(山陽線|山陽本線|呉線|可部線|芸備線)/.test(rec) && !/(順次運転見合わせ|運転見合わせ|運転取り止め|運休|徐行運転|遅延|遅れ)/.test(rec) && next) {
-      rec = `${rec} ${next}`;
-    }
-
-    records.push(rec.replace(/\s+/g, " ").trim());
-  }
-
-  return [...new Set(records)];
-}
-
-function recordMatchesLine(record, lineDef) {
-  return lineDef.names.some(name => record.includes(name));
-}
-
-function extractJrRecordsForLine(lines, lineDef) {
-  const allRecords = splitJrIncidentRecords(lines);
-
-  // まず路線名が明示されているレコードを拾う。
-  let records = allRecords.filter(record => recordMatchesLine(record, lineDef));
-
-  // ページ構造によっては「山陽線」の直後に、状況だけのレコードが続く場合がある。
-  // その場合は、該当路線名が出た位置から次の路線名までを追加で見る。
-  const joined = lines.join(" ");
-  for (const name of lineDef.names) {
-    const idx = joined.indexOf(name);
+function extractHiroshimaYamaguchiSection(text) {
+  const startMarkers = ["広島・山口地区", "Hiroshima・Yamaguchi Area"];
+  let start = -1;
+  for (const marker of startMarkers) {
+    const idx = text.indexOf(marker);
     if (idx !== -1) {
-      const tail = joined.slice(idx, idx + 1200);
-      const nextLineIdxs = jrLocalLines
-        .flatMap(l => l.names)
-        .filter(n => !lineDef.names.includes(n))
-        .map(n => tail.indexOf(n))
-        .filter(i => i > 20);
-      const end = nextLineIdxs.length ? Math.min(...nextLineIdxs) : tail.length;
-      const section = tail.slice(0, end);
-      const extraRecords = splitJrIncidentRecords(section.split(/(?=順次運転見合わせ|運転見合わせ|運転取り止め|運休|徐行運転|遅延)/));
-      records.push(...extraRecords.filter(r => /(順次運転見合わせ|運転見合わせ|運転取り止め|運休|徐行運転|遅延|遅れ)/.test(r)));
+      start = idx;
+      break;
     }
   }
+  if (start === -1) return text;
 
-  // お知らせ・履歴・長期工事などは除外寄り。
-  const ignorePattern = /(お知らせ|履歴|長期運転見合わせ|保守工事|明日|明後日|払い戻し|振替輸送|ご案内|このページ|利用規約)/;
+  const tail = text.slice(start);
+  const endMarkers = ["山陰地区", "San-in Area", "岡山・福山地区", "Okayama・Fukuyama Area"];
+  let end = tail.length;
 
-  records = records
-    .map(r => r.replace(/\s+/g, " ").trim())
+  for (const marker of endMarkers) {
+    const idx = tail.indexOf(marker, 20);
+    if (idx !== -1 && idx < end) end = idx;
+  }
+
+  return tail.slice(0, end);
+}
+
+function getJrRecordsFromText(text, lineDef) {
+  const records = [];
+  const linePattern = lineDef.names.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const allLineNames = jrLocalLines
+    .flatMap(l => l.names)
+    .map(n => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|");
+
+  // 1. 【山陽線】... / 〖山陽線〗... のようなタイトル形式を優先
+  const titledRe = new RegExp(`(?:【|〖)\\s*(?:${linePattern})\\s*(?:】|〗)([\\s\\S]{0,900}?)(?=(?:【|〖)\\s*(?:${allLineNames})\\s*(?:】|〗)|$)`, "g");
+  let m;
+  while ((m = titledRe.exec(text)) !== null) {
+    records.push(`${lineDef.label} ${m[1]}`.replace(/\s+/g, " ").trim());
+  }
+
+  // 2. 路線名から次の路線名までの範囲
+  const lineRe = new RegExp(`(?:${linePattern})([\\s\\S]{0,900}?)(?=(?:${allLineNames})|$)`, "g");
+  while ((m = lineRe.exec(text)) !== null) {
+    records.push(`${lineDef.label} ${m[1]}`.replace(/\s+/g, " ").trim());
+  }
+
+  // 3. 山陽線だけは、同一ページ内で複数レコードが続くことが多いため、
+  //    「順次運転見合わせ」などを起点にした周辺も拾う。
+  //    ただし路線名や駅名の範囲が山陽線に関係するものに絞る。
+  const incidentRe = /(順次運転見合わせ|運転見合わせ|運転取り止め|運休|徐行運転|遅延|遅れ)([\s\S]{0,550}?)(?=(順次運転見合わせ|運転見合わせ|運転取り止め|運休|徐行運転|遅延|遅れ|【|〖|$))/g;
+  while ((m = incidentRe.exec(text)) !== null) {
+    const rec = `${m[1]} ${m[2]}`.replace(/\s+/g, " ").trim();
+    if (isJrRecordRelatedToLine(rec, lineDef)) records.push(rec);
+  }
+
+  return [...new Set(records.map(r => r.replace(/\s+/g, " ").trim()))]
     .filter(r => /(順次運転見合わせ|運転見合わせ|運転取り止め|運休|徐行運転|遅延|遅れ)/.test(r))
-    .filter(r => !(ignorePattern.test(r) && !/(順次運転見合わせ|運転見合わせ|遅延|運休|運転取り止め)/.test(r)));
+    .filter(r => !isIgnorableJrRecord(r));
+}
 
-  // 重複を除去
-  return [...new Set(records)];
+function isIgnorableJrRecord(record) {
+  // 明日以降の予告・長期工事・単なる説明文は除外。
+  if (/(明日|明後日|長期運転見合わせ|保守工事|払い戻し|利用規約|このページ|ご案内)/.test(record)
+      && !/(本日|現在|発生|運転見合わせ|遅延|順次運転見合わせ)/.test(record)) {
+    return true;
+  }
+  return false;
+}
+
+function isJrRecordRelatedToLine(record, lineDef) {
+  if (lineDef.names.some(name => record.includes(name))) return true;
+
+  // 駅名での補助判定。完璧ではないが、広島近郊の主要区間に絞る。
+  if (lineDef.id === "jr-sanyo") {
+    return /(岩国|大竹|宮島口|五日市|横川|広島|新白島|天神川|向洋|海田市|瀬野|八本松|西条|白市|三原|糸崎|尾道)/.test(record);
+  }
+  if (lineDef.id === "jr-kure") {
+    return /(三原|須波|安芸幸崎|竹原|安浦|安芸川尻|広|呉|坂|矢野|海田市)/.test(record);
+  }
+  if (lineDef.id === "jr-kabe") {
+    return /(横川|三滝|安芸長束|下祇園|古市橋|大町|緑井|可部|あき亀山)/.test(record);
+  }
+  if (lineDef.id === "jr-geibi") {
+    return /(広島|矢賀|戸坂|安芸矢口|玖村|下深川|狩留家|志和口|三次|備後庄原|備後落合)/.test(record);
+  }
+  return false;
 }
 
 function parseJrIncident(record) {
@@ -258,28 +274,24 @@ function parseJrIncident(record) {
 
   let section = "";
   const sectionPatterns = [
-    /(?:区間|一部区間)\s*[:：]?\s*([^。]{2,60}?)(?=\s*(?:原因|理由|再開見込|再開見込み|影響|$))/,
+    /(?:区間|一部区間)\s*[:：]?\s*([^。]{2,70}?)(?=\s*(?:原因|理由|再開見込|再開見込み|影響|$))/,
     /([一-龥ぁ-んァ-ヶA-Za-z0-9]+駅?\s*[〜～\-－]\s*[一-龥ぁ-んァ-ヶA-Za-z0-9]+駅?)/,
-    /([一-龥ぁ-んァ-ヶA-Za-z0-9]+駅?\s*から\s*[一-龥ぁ-んァ-ヶA-Za-z0-9]+駅?\s*まで)/
+    /([一-龥ぁ-んァ-ヶA-Za-z0-9]+駅?\s*から\s*[一-龥ぁ-んァ-ヶA-Za-z0-9]+駅?\s*まで)/,
+    /([一-龥ぁ-んァ-ヶA-Za-z0-9]+)\s*と\s*([一-龥ぁ-んァ-ヶA-Za-z0-9]+)\s*の間/
   ];
   for (const p of sectionPatterns) {
     const m = record.match(p);
-    if (m && m[1]) {
-      section = m[1].replace(/\s+/g, " ").trim();
+    if (m) {
+      if (m[2]) section = `${m[1]}〜${m[2]}`;
+      else section = m[1].replace(/\s+/g, " ").trim();
       break;
     }
-  }
-
-  // 「海田市と岩国の間」のような表現も拾う。
-  if (!section) {
-    const between = record.match(/([一-龥ぁ-んァ-ヶA-Za-z0-9]+)\s*と\s*([一-龥ぁ-んァ-ヶA-Za-z0-9]+)\s*の間/);
-    if (between) section = `${between[1]}〜${between[2]}`;
   }
 
   let reason = "";
   const reasonPatterns = [
     /(?:原因|理由)\s*[:：]?\s*([^。]{2,45}?)(?=\s*(?:再開見込|再開見込み|区間|影響|$))/,
-    /(人と接触|倒木|踏切確認|車両確認|信号確認|線路確認|沿線火災|大雨|強風|落石|動物と接触)/
+    /(人と接触|倒木|踏切確認|車両確認|信号確認|線路確認|沿線火災|大雨|強風|落石|動物と接触|架線確認|設備確認)/
   ];
   for (const p of reasonPatterns) {
     const m = record.match(p);
@@ -291,7 +303,7 @@ function parseJrIncident(record) {
 
   let resume = "";
   const resumePatterns = [
-    /(?:再開見込|再開見込み)\s*[:：]?\s*([^。]{2,45}?)(?=\s*(?:原因|理由|区間|影響|$))/,
+    /(?:再開見込|再開見込み)\s*[:：]?\s*([^。]{2,50}?)(?=\s*(?:原因|理由|区間|影響|$))/,
     /([0-9０-９]{1,2}\s*時\s*[0-9０-９]{0,2}\s*分?\s*頃(?:以降)?)/,
     /(未定)/
   ];
@@ -312,8 +324,19 @@ function parseJrIncident(record) {
   return parts.length ? parts.join("／") : "要確認";
 }
 
-function summarizeJrLine(lines, lineDef) {
-  const records = extractJrRecordsForLine(lines, lineDef);
+function summarizeJrLineFromHtml(html, lineDef) {
+  const fullText = stripHtml(html)
+    .replace(/&nbsp;/g, " ")
+    .replace(/。/g, "。 ")
+    .replace(/\s+/g, " ");
+
+  const localText = extractHiroshimaYamaguchiSection(fullText);
+  let records = getJrRecordsFromText(localText, lineDef);
+
+  // 念のため、広島・山口地区の切り出しがうまくいかない場合は全体でも見る。
+  if (!records.length) {
+    records = getJrRecordsFromText(fullText, lineDef);
+  }
 
   if (!records.length) {
     return {
@@ -333,7 +356,6 @@ function summarizeJrLine(lines, lineDef) {
     };
   }
 
-  // 長くなりすぎないよう最大4件まで。5件以上なら「ほかあり」を付ける。
   const shown = incidents.slice(0, 4);
   const suffix = incidents.length > 4 ? `／ほか${incidents.length - 4}件` : "";
 
@@ -347,8 +369,7 @@ async function checkJrLocalLine(lineDef, cachedHtml = null) {
   const url = lineDef.url;
   try {
     const html = cachedHtml || await fetchText(url);
-    const lines = normalizeJrText(html);
-    const result = summarizeJrLine(lines, lineDef);
+    const result = summarizeJrLineFromHtml(html, lineDef);
 
     return {
       label: lineDef.label,
