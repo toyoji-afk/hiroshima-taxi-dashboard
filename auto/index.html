@@ -442,6 +442,18 @@ async function loadAutoSummary() {
       return { cls: "error", badge: "未取得" };
     }
 
+    // 天気はタクシー乗務目線で判定する。
+    // 降水確率が50%以上なら、配車増・乗降時の注意が必要なので「注意」。
+    if (label.includes("天気")) {
+      const rainPercentMatches = [...haystack.matchAll(/(\d{1,3})\s*%/g)]
+        .map(m => Number(m[1]))
+        .filter(n => Number.isFinite(n));
+      const maxRainPercent = rainPercentMatches.length ? Math.max(...rainPercentMatches) : 0;
+      if (maxRainPercent >= 50) {
+        return { cls: "alert", badge: "注意" };
+      }
+    }
+
     const normalWords = [
       "平常運転",
       "平常・大きな乱れ情報なし",
