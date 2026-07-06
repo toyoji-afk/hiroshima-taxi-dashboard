@@ -1,4 +1,4 @@
-// update-status.js v47: Hiroden parser fix + JMA/JR/airport stable version
+// update-status.js v48: Hiroden category-aware parser fix + JMA/JR/airport stable version
 // 広島市タクシーダッシュボード：本日の自動巡回メモ生成
 // Node.js 20+ / GitHub Actions
 //
@@ -466,29 +466,94 @@ function excerptAbnormal(text, maxLen = 110) {
   return t.slice(i, i + maxLen).trim();
 }
 
-function normalizeHirodenRouteName(routeText) {
+function detectHirodenCategory(blockText) {
+  const t = compactText(blockText);
+
+  // ページ上の実カテゴリを優先して判定する。
+  // 「5号線」「6号線」は路面電車にも路線バスにも存在するため、ここを絶対に落とさない。
+  if (/(^|\s)電車(\s|$)|市内線|宮島線/.test(t)) return '路面電車';
+  if (/(^|\s)路線バス(\s|$)|広島市中心部エリア|郊外エリア|宮島口エリア|エキまちループ/.test(t)) return '路線バス';
+  if (/(^|\s)高速乗合バス(\s|$)/.test(t)) return '高速乗合バス';
+  if (/(^|\s)空港連絡バス(\s|$)/.test(t)) return '空港連絡バス';
+
+  // どうしてもカテゴリが取れない場合、無理に「路線バス」と決め打ちしない。
+  return '広電';
+}
+
+function normalizeHirodenRouteName(routeText, category = '') {
   let r = compactText(routeText)
+    .replace(/^現在の運行情報\s*/g, '')
     .replace(/^広島市中心部エリア\s*/g, '')
     .replace(/^郊外エリア\s*/g, '')
     .replace(/^宮島口エリア\s*/g, '')
     .replace(/^市内線\s*/g, '')
+    .replace(/^宮島線\s*/g, '宮島線 ')
     .replace(/^電車\s*/g, '')
     .replace(/^路線バス\s*/g, '')
+    .replace(/^高速乗合バス\s*/g, '')
+    .replace(/^空港連絡バス\s*/g, '')
     .trim();
 
-  const ekimachi = r.match(/101\s+102\s+103\s+エキまちループ/);
+  // エキまちループは 101/102/103 の番号が前に付くため、専用処理。
+  const ekimachi = r.match(/101\s+102\s+103\s+エキまちループ|エキまちループ/);
   if (ekimachi) return 'エキまちループ';
 
-  const busRoute = r.match(/(?:\d+\s+)?(\d+号線（[^）]+）)/);
-  if (busRoute) return busRoute[1];
+  // 高速・空港連絡は号線とは限らないので、先頭の短い名称を優先。
+  if (category === '高速乗合バス' || category === '空港連絡バス') {
+    const named = r.match(/^([^\s]+(?:線|号|便|方面|行き|リムジン|エアポート|空港)[^\s]*)/);
+    if (named) return named[1].slice(0, 42);
+  }
 
-  const simpleBus = r.match(/(?:\d+\s+)?(\d+号線)/);
-  if (simpleBus) return simpleBus[1];
+  // 「12 5号線（牛田早稲田）」のような表記。
+  const routeWithParen = r.match(/(?:\d+\s+)?(\d+号線（[^）]+）)/);
+  if (routeWithParen) return routeWithParen[1];
 
-  const streetcar = r.match(/(\d+号線|本線|宇品線|横川線|江波線|白島線|宮島線)[^\s]*/);
+  // 路面電車・路線バス共通で号線は拾う。ただし表示側でカテゴリを必ず付ける。
+  const simpleNumbered = r.match(/(?:\d+\s+)?(\d+号線)/);
+  if (simpleNumbered) return simpleNumbered[1];
+
+  // 路面電車の系統名・線名。
+  const streetcar = r.match(/(本線|宇品線|横川線|江波線|白島線|宮島線)[^\s]*/);
   if (streetcar) return streetcar[0];
 
+  // バス系統など、最低限読める範囲で返す。
   return r.slice(0, 42).trim();
+}
+
+function makeHirodenOperationText(items) {
+  if (!items.length) return '';
+
+  // カテゴリ → 状態ごとにまとめる。これで「路面電車 5号線」と「路線バス 5号線」を混同しない。
+  const byCatState = new Map();
+  for (const x of items) {
+    const key = `${x.category}||${x.state}`;
+    if (!byCatState.has(key)) byCatState.set(key, []);
+    const arr = byCatState.get(key);
+    if (!arr.some(y => y.route === x.route)) arr.push(x);
+  }
+
+  const categoryOrder = ['路面電車', '路線バス', '高速乗合バス', '空港連絡バス', '広電'];
+  const stateOrder = ['運転見合わせ', '運行見合わせ', '運休', '一部運休', '遅延', '迂回', '通行止め', 'ダイヤ乱れ'];
+  const keys = [...byCatState.keys()].sort((a, b) => {
+    const [ca, sa] = a.split('||');
+    const [cb, sb] = b.split('||');
+    const ci = categoryOrder.indexOf(ca), cj = categoryOrder.indexOf(cb);
+    if (ci !== cj) return (ci < 0 ? 99 : ci) - (cj < 0 ? 99 : cj);
+    const si = stateOrder.indexOf(sa), sj = stateOrder.indexOf(sb);
+    return (si < 0 ? 99 : si) - (sj < 0 ? 99 : sj);
+  });
+
+  const parts = [];
+  for (const key of keys) {
+    const [category, state] = key.split('||');
+    const arr = byCatState.get(key);
+    const routes = arr.slice(0, 8).map(x => x.route).join('、');
+    const latest = arr.map(x => x.time).sort().slice(-1)[0];
+    const more = arr.length > 8 ? ` ほか${arr.length - 8}件` : '';
+    parts.push(`${category} ${state}：${routes}${more}${latest ? `（${latest}更新）` : ''}`);
+  }
+
+  return parts.join(' ／ ');
 }
 
 function extractHirodenOperations(text) {
@@ -509,60 +574,50 @@ function extractHirodenOperations(text) {
   const summaryPart = detailIdx >= 0 ? body.slice(0, detailIdx) : body;
   const detailPart = detailIdx >= 0 ? body.slice(detailIdx) : body;
 
-  // まず上部の「現在の運行情報」一覧から、5号線・6号線・2号線などの路線名を確実に拾う。
-  // ここは詳細本文より短く、ダッシュボード向けの要約に向いている。
+  // 上部の「現在の運行情報」一覧から取得。
+  // カテゴリも保持し、「路面電車 5号線」と「路線バス 5号線」を分離する。
   const headMatches = [...summaryPart.matchAll(/(20\d{2}\/\d{1,2}\/\d{1,2})\s+(\d{1,2}:\d{2})\s+更新\s+(遅延|運休|運転見合わせ|運行見合わせ|一部運休|迂回|通行止め|ダイヤ乱れ)\s+([\s\S]*?)(?=20\d{2}\/\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2}\s+更新\s+(?:遅延|運休|運転見合わせ|運行見合わせ|一部運休|迂回|通行止め|ダイヤ乱れ)|運行情報の詳細は以下の通りです|$)/g)];
 
   const summaries = [];
   for (const m of headMatches) {
     const time = m[2];
     const state = m[3];
-    const route = normalizeHirodenRouteName(m[4]);
+    const block = compactText(m[4]);
+    if (/このページでは|ナビゲーション|到着時間|運行情報メニュー|天災や道路通行止め/.test(block)) continue;
+    const category = detectHirodenCategory(block);
+    const route = normalizeHirodenRouteName(block, category);
     if (!route) continue;
-    // 冒頭説明文やナビゲーションを誤って拾った場合は除外。
-    if (/このページでは|ナビゲーション|到着時間|運行情報メニュー/.test(route)) continue;
-    summaries.push({ time, state, route });
+    summaries.push({ time, state, category, route });
   }
 
   if (summaries.length) {
-    const byState = new Map();
-    for (const x of summaries) {
-      const key = x.state;
-      if (!byState.has(key)) byState.set(key, []);
-      const arr = byState.get(key);
-      if (!arr.some(y => y.route === x.route)) arr.push(x);
-    }
-
-    const parts = [];
-    for (const [state, arr] of byState.entries()) {
-      const routes = arr.slice(0, 8).map(x => x.route).join('、');
-      const latest = arr.map(x => x.time).sort().slice(-1)[0];
-      const more = arr.length > 8 ? ` ほか${arr.length - 8}件` : '';
-      parts.push(`路線バス ${state}：${routes}${more}（${latest}更新）`);
-    }
-    return parts.join(' ／ ');
+    const msg = makeHirodenOperationText(summaries);
+    if (msg) return msg;
   }
 
   // 一覧が取れない場合は、詳細ブロックから拾う。
   const matches = [...detailPart.matchAll(/(20\d{2}\/\d{1,2}\/\d{1,2})\s+(\d{1,2}:\d{2})\s+更新\s+(遅延|運休|運転見合わせ|運行見合わせ|一部運休|迂回|通行止め|ダイヤ乱れ)([\s\S]*?)(?=20\d{2}\/\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2}\s+更新\s+(?:遅延|運休|運転見合わせ|運行見合わせ|一部運休|迂回|通行止め|ダイヤ乱れ)|バス延着証明書の発行はこちら|詳しい運行状況は|$)/g)];
 
-  const chunks = [];
+  const details = [];
   for (const m of matches) {
     const time = m[2];
     const state = m[3];
     const block = compactText(m[4]);
-    const route = normalizeHirodenRouteName(block);
-    const section = (block.match(/区間\s+([^事由程度詳細]+)/) || [])[1];
-    const degree = (block.match(/程度\s+([^事由詳細]+)/) || [])[1];
-    let chunk = `${state}：${route}`;
-    if (section) chunk += ` 区間：${compactText(section)}`;
-    if (degree) chunk += ` 程度：${compactText(degree)}`;
-    chunk += `（${time}更新）`;
-    if (route) chunks.push(chunk);
+    if (/このページでは|ナビゲーション|到着時間|運行情報メニュー|天災や道路通行止め/.test(block)) continue;
+    const category = detectHirodenCategory(block);
+    const route = normalizeHirodenRouteName(block, category);
+    if (!route) continue;
+    const section = (block.match(/区間\s+([^事由程度詳細備考]+)/) || [])[1];
+    const degree = (block.match(/程度\s+([^事由詳細備考]+)/) || [])[1];
+    let routeText = route;
+    if (section) routeText += ` 区間：${compactText(section)}`;
+    if (degree) routeText += ` 程度：${compactText(degree)}`;
+    details.push({ time, state, category, route: routeText });
   }
 
-  if (chunks.length) {
-    return `路線バス ${chunks.slice(0, 5).join(' ／ ')}`;
+  if (details.length) {
+    const msg = makeHirodenOperationText(details.slice(0, 8));
+    if (msg) return msg;
   }
 
   // 詳細側の構造が変わった場合の保険。
