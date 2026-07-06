@@ -519,8 +519,11 @@ async function loadAutoSummary() {
       const message = escapeHtml(pick(item, ["message", "text", "detail", "summary", "memo", "description"], "確認してください"))
         .replace(/要確認キーワードあり/g, "要確認あり")
         .replace(/キーワードあり/g, "あり");
-      const url = pick(item, ["url", "link", "href", "source_url"], "#");
-      return `<li class="${judged.cls}"><span class="badge">${judged.badge}</span><a class="auto-source" href="${escapeAttr(url)}">${label}</a><span class="auto-message">：${message}</span></li>`;
+      const url = pick(item, ["url", "link", "href", "source_url"], "");
+      const sourceHtml = url
+        ? `<a class="auto-source" href="${escapeAttr(url)}">${label}</a>`
+        : `<span class="auto-source">${label}</span>`;
+      return `<li class="${judged.cls}"><span class="badge">${judged.badge}</span>${sourceHtml}<span class="auto-message">：${message}</span></li>`;
     }).join("");
   } catch (e) {
     autoUpdated.textContent = "未取得";
