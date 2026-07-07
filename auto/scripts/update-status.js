@@ -1,4 +1,4 @@
-// update-status.js v59: Open-Meteo + JR/Hiroden stable + stronger Carp multi-date detection
+// update-status.js v62: Sanyo Shinkansen + compact normal labels
 // 広島市タクシーダッシュボード：本日の自動巡回メモ生成
 // Node.js 20+ / GitHub Actions
 //
@@ -18,6 +18,7 @@ const DEBUG_DIR = path.join(process.cwd(), 'auto/data/debug');
 const URLS = {
   weather: 'https://api.open-meteo.com/v1/forecast',
   hiroden: 'https://www.hiroden.co.jp/traffic/info/',
+  sanyoShinkansen: 'https://trafficinfo.westjr.co.jp/sanyo.html',
   hiroshimaBus: 'https://hirobus-info-rosen.jp/',
   hiroshimaKotsu: 'https://www.hiroko-group.co.jp/kotsu/rosen_unkou.htm',
   airportDomesticDepartures: 'https://www.hij.airport.jp/flight/flight_dd.html',
@@ -142,7 +143,7 @@ function makeItem(name, memoBody, status = '確認', source = '') {
   const memo = `${title}：${body}`;
 
   // 「大きな欠航・遅延表示なし」のような正常文で、欠航/遅延という単語だけに反応しないようにする。
-  const normalMessage = /平常|大きな乱れ情報なし|表示なし|検出なし|通常運行|通常通り|運行情報はありません/.test(`${status} ${body}`);
+  const normalMessage = /平常|平常運航|大きな乱れ情報なし|表示なし|検出なし|通常運行|通常通り|運行情報はありません/.test(`${status} ${body}`);
   const combined = `${status} ${title} ${body}`;
   let level = normalMessage ? 'ok' : levelForStatus(combined);
   const badge = level === 'error' ? 'NG' : level === 'warning' ? '注意' : 'OK';
@@ -246,7 +247,7 @@ function normalizeDashboardItem(item) {
 }
 
 function normalItem(name, source = '') {
-  return makeItem(name, '平常・大きな乱れ情報なし', '平常運転', source);
+  return makeItem(name, '平常運転', '平常運転', source);
 }
 
 function errorItem(name, err, source = '') {
@@ -316,6 +317,101 @@ function requireJrParser() {
   }
   throw new Error(`JR parser not found. Put auto/scripts/jr-west-parser.js. Details: ${errors.join(' / ')}`);
 }
+
+
+async function fetchRenderedText(url, label, timeoutMs = 45000) {
+  // JR西日本の運行情報ページはクライアント側描画が入るため、
+  // fetchではなくPlaywrightで描画後のbodyテキストを見る。
+  let chromium = null;
+  let browser = null;
+
+  try {
+    ({ chromium } = require('playwright'));
+    browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage({
+      userAgent: USER_AGENT,
+      locale: 'ja-JP',
+      timezoneId: 'Asia/Tokyo',
+    });
+
+    await page.goto(addCacheBuster(url), {
+      waitUntil: 'networkidle',
+      timeout: timeoutMs,
+    });
+
+    await page.waitForTimeout(1200);
+
+    const html = await page.content();
+    const bodyText = await page.locator('body').innerText({ timeout: 10000 });
+    const text = compactText(bodyText || htmlToText(html));
+
+    console.log(`[render] ${label}: length=${text.length}`);
+    writeDebug(`${label}.rendered.html`, html);
+    writeDebug(`${label}.rendered.txt`, text);
+
+    return { ok: true, status: 200, html, text };
+  } finally {
+    if (browser) await browser.close();
+  }
+}
+
+function extractSanyoShinkansenOperations(text) {
+  const raw = compactText(text);
+
+  const noInfoWords = [
+    '現在、運行情報はありません',
+    '現在運行情報はありません',
+    '現在、お知らせする情報はありません',
+    'お知らせする情報はありません',
+    'お知らせする情報がありません',
+    '現在お知らせする情報はありません',
+    '現在情報はありません',
+    '平常通り運転しています',
+    '平常運転しています',
+  ];
+  if (noInfoWords.some(w => raw.includes(w))) return '';
+
+  // 説明文・凡例のキーワード誤検出を避けるため、日時付きの実エントリだけを見る。
+  const abnormalStates = '遅延|運転見合わせ|運行見合わせ|運休|一部運休|運転取り止め|運転を取り止め|ダイヤ乱れ';
+  const datedEntryRe = new RegExp(`(20\\d{2}[\\/\\-年]\\d{1,2}[\\/\\-月]\\d{1,2}日?\\s+\\d{1,2}:\\d{2}|\\d{1,2}月\\d{1,2}日\\s+\\d{1,2}:\\d{2}|\\d{1,2}:\\d{2})\\s*(?:現在|更新)?\\s*(${abnormalStates})`, 'g');
+
+  const entries = [];
+  let m;
+  while ((m = datedEntryRe.exec(raw)) !== null) {
+    const start = Math.max(0, m.index - 20);
+    const end = Math.min(raw.length, m.index + 240);
+    const chunk = raw.slice(start, end);
+
+    if (/凡例|説明|このページ|ご利用上の注意|ナビゲーション|トップページ|履歴/.test(chunk)) continue;
+
+    const state = m[2];
+    const reason = (chunk.match(/(?:原因|理由)\s*[:：]?\s*([^。／\s]+(?:\s*[^。／]{0,24})?)/) || [])[1];
+    const section = (chunk.match(/(?:区間|影響区間)\s*[:：]?\s*([^。／]{1,36})/) || [])[1];
+
+    let msg = state;
+    if (reason) msg += `：${compactText(reason).slice(0, 32)}`;
+    if (section) msg += `（${compactText(section).slice(0, 36)}）`;
+
+    if (!entries.some(x => x === msg)) entries.push(msg);
+  }
+
+  if (!entries.length) return '';
+
+  return `${entries.slice(0, 4).join(' ／ ')}。広島駅新幹線口周辺の混雑に注意`;
+}
+
+async function getSanyoShinkansenStatus() {
+  const name = '山陽新幹線';
+  try {
+    const { text } = await fetchRenderedText(URLS.sanyoShinkansen, 'sanyo-shinkansen');
+    const ops = extractSanyoShinkansenOperations(text);
+    if (ops) return makeItem(name, ops, '要確認', URLS.sanyoShinkansen);
+    return makeItem(name, '平常運転', '平常運転', URLS.sanyoShinkansen);
+  } catch (e) {
+    return makeItem(name, `情報未確認。必要時はJR西日本公式を確認（${e.message || e}）`, '要確認', URLS.sanyoShinkansen);
+  }
+}
+
 
 async function getWeatherStatus() {
   const name = '広島市中心天気';
@@ -845,7 +941,7 @@ async function getHirodenStatus() {
 }
 
 async function getHiroshimaBusStatus() {
-  const name = '広島バス 路線バス';
+  const name = '広島バス';
   try {
     // 広島バスの運行情報ページはGitHub Actions環境から一時的に fetch failed になることがあるため、
     // キャッシュ回避URLで短いリトライを行う。
@@ -866,7 +962,7 @@ async function getHiroshimaBusStatus() {
 }
 
 async function getHiroshimaKotsuStatus() {
-  const name = '広島交通 路線バス';
+  const name = '広島交通';
   try {
     const { text } = await fetchText(URLS.hiroshimaKotsu, 'hiroshima-kotsu');
     if (hasNoInfoText(text)) return normalItem(name, URLS.hiroshimaKotsu);
@@ -907,7 +1003,7 @@ async function getAirportStatus() {
     if (found.length) {
       return makeItem(name, `${[...new Set(found)].join('・')}の表示あり。詳細は公式フライト情報を確認`, '要確認', URLS.airportDomesticDepartures);
     }
-    return makeItem(name, '平常・大きな乱れ情報なし。空港送迎前は公式フライト情報を確認', '平常運転', URLS.airportDomesticDepartures);
+    return makeItem(name, '平常運航', '平常運航', URLS.airportDomesticDepartures);
   } catch (e) {
     return errorItem(name, e, URLS.airportDomesticDepartures);
   }
@@ -1084,7 +1180,7 @@ async function getCarpStatus() {
       );
     }
 
-    return makeItem(name, `本日${today.mdKanji}の本拠地開催は検出なし`, '平常', npbUrl);
+    return makeItem(name, '本拠地開催なし', '平常', npbUrl);
   } catch (e) {
     // NPB取得失敗時だけ、従来のカープ公式カレンダーにフォールバック。
     try {
@@ -1095,7 +1191,7 @@ async function getCarpStatus() {
         const time = (w.match(/\b\d{1,2}:\d{2}\b/) || [])[0];
         return makeItem(name, `本日${today.mdKanji} マツダスタジアム開催の可能性あり${time ? `（${time}）` : ''}。広島駅・球場周辺の混雑に注意`, '要確認', URLS.carp);
       }
-      return makeItem(name, `本日${today.mdKanji}の本拠地開催は検出なし`, '平常', URLS.carp);
+      return makeItem(name, '本拠地開催なし', '平常', URLS.carp);
     } catch (fallbackError) {
       return errorItem(name, fallbackError, npbUrl);
     }
@@ -1119,7 +1215,7 @@ async function getSanfrecceStatus() {
       );
     }
 
-    return makeItem(name, `本日${today.mdKanji}の本拠地開催は検出なし`, '平常', URLS.sanfrecce);
+    return makeItem(name, '本拠地開催なし', '平常', URLS.sanfrecce);
   } catch (e) {
     return errorItem(name, e, URLS.sanfrecce);
   }
@@ -1142,6 +1238,7 @@ async function main() {
 
   // 表示順固定：ユーザー指定どおり
   const weatherStatus = await safeGet('広島市中心天気', getWeatherStatus);
+  const sanyoShinkansenStatus = await safeGet('山陽新幹線', getSanyoShinkansenStatus);
   const jrStatuses = await safeGet('JR西日本', getJrStatuses);
   const hirodenStatus = await safeGet('広島電鉄', getHirodenStatus);
   const hiroshimaBusStatus = await safeGet('広島バス 路線バス', getHiroshimaBusStatus);
@@ -1152,6 +1249,7 @@ async function main() {
 
   const items = [
     weatherStatus,
+    sanyoShinkansenStatus,
     ...(Array.isArray(jrStatuses) ? jrStatuses : [jrStatuses]),
     hirodenStatus,
     hiroshimaBusStatus,
