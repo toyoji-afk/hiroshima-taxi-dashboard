@@ -1,4 +1,4 @@
-// update-status.js v62: Sanyo Shinkansen + compact normal labels
+// update-status.js v63: compact normal labels in data source
 // 広島市タクシーダッシュボード：本日の自動巡回メモ生成
 // Node.js 20+ / GitHub Actions
 //
@@ -30,7 +30,7 @@ const URLS = {
   sanfrecce: 'https://www.sanfrecce.co.jp/matches/results',
 };
 
-const USER_AGENT = 'Mozilla/5.0 GitHubActions HiroshimaTaxiDashboard/51.0';
+const USER_AGENT = 'Mozilla/5.0 GitHubActions HiroshimaTaxiDashboard/63.0';
 
 function nowIsoJst() {
   return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tokyo' }).replace(' ', 'T') + '+09:00';
@@ -931,10 +931,7 @@ async function getHirodenStatus() {
       return makeItem(name, appendHirodenOfficialUpdate(ops, officialUpdateTime), '要確認', URLS.hiroden);
     }
 
-    const normalBody = officialUpdateTime
-      ? `平常・大きな乱れ情報なし（広電公式 ${officialUpdateTime}更新）`
-      : '平常・大きな乱れ情報なし';
-    return makeItem(name, normalBody, '平常運転', URLS.hiroden);
+    return makeItem(name, '平常運転', '平常運転', URLS.hiroden);
   } catch (e) {
     return errorItem(name, e, URLS.hiroden);
   }
@@ -948,7 +945,7 @@ async function getHiroshimaBusStatus() {
     const { text } = await fetchTextWithRetry(URLS.hiroshimaBus, 'hiroshima-bus', 30000, 3);
     if (hasNoInfoText(text)) return normalItem(name, URLS.hiroshimaBus);
     if (detectTransitAbnormal(text)) return makeItem(name, excerptAbnormal(text), '要確認', URLS.hiroshimaBus);
-    return makeItem(name, '公式運行情報ページを確認（大きな乱れ情報なし想定）', '確認', URLS.hiroshimaBus);
+    return normalItem(name, URLS.hiroshimaBus);
   } catch (e) {
     // 取得失敗そのものはシステムエラーではなく「情報未確認」として扱う。
     // NG表示にするとダッシュボード全体が壊れたように見えるため、タクシー実務上は要確認に落とす。
@@ -1199,7 +1196,7 @@ async function getCarpStatus() {
 }
 
 async function getSanfrecceStatus() {
-  const name = 'サンフレッチェ広島開催';
+  const name = 'サンフレッチェ開催';
   const today = todayJstParts();
 
   try {
@@ -1245,7 +1242,7 @@ async function main() {
   const hiroshimaKotsuStatus = await safeGet('広島交通 路線バス', getHiroshimaKotsuStatus);
   const airportStatus = await safeGet('広島空港', getAirportStatus);
   const carpStatus = await safeGet('カープ本拠地開催', getCarpStatus);
-  const sanfrecceStatus = await safeGet('サンフレッチェ広島開催', getSanfrecceStatus);
+  const sanfrecceStatus = await safeGet('サンフレッチェ開催', getSanfrecceStatus);
 
   const items = [
     weatherStatus,
