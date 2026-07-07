@@ -315,7 +315,7 @@ footer {
     </section>
 
     <footer>
-      第60版：iPhoneキャッシュ回避・下部ナビ固定強化版<br>
+      第61版：status.json読込URL強化版<br>
       非公式・個人用ダッシュボード / © 2026 Toyoji Yamamoto
     </footer>
   </main>
@@ -518,22 +518,37 @@ async function loadAutoSummary() {
     const pathParts = location.pathname.split("/").filter(Boolean);
     const repoName = pathParts[0] || "hiroshima-taxi-dashboard";
     const userName = location.hostname.replace(".github.io", "");
-    const rawStatusUrl = `https://raw.githubusercontent.com/${userName}/${repoName}/main/auto/data/status.json?_=${cacheBust}`;
-    const localStatusUrl = `data/status.json?_=${cacheBust}`;
 
-    let res = await fetch(rawStatusUrl, {
-      cache: "no-store",
-      headers: { "Cache-Control": "no-cache", "Pragma": "no-cache" }
-    });
-    if (!res.ok) {
-      res = await fetch(localStatusUrl, {
-        cache: "no-store",
-        headers: { "Cache-Control": "no-cache", "Pragma": "no-cache" }
-      });
+    // iPhoneのホーム画面アイコン経由では、/auto と /auto/ の扱いで
+    // 相対パス data/status.json が外れることがあるため、候補URLを順番に試す。
+    const statusUrls = [
+      `./data/status.json?_=${cacheBust}`,
+      `/hiroshima-taxi-dashboard/auto/data/status.json?_=${cacheBust}`,
+      `/${repoName}/auto/data/status.json?_=${cacheBust}`,
+      `https://raw.githubusercontent.com/${userName}/${repoName}/main/auto/data/status.json?_=${cacheBust}`
+    ];
+
+    let data = null;
+    let lastStatusError = null;
+
+    for (const statusUrl of statusUrls) {
+      try {
+        const res = await fetch(statusUrl, {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache", "Pragma": "no-cache" }
+        });
+        if (!res.ok) throw new Error(`${statusUrl} HTTP ${res.status}`);
+        data = await res.json();
+        break;
+      } catch (err) {
+        lastStatusError = err;
+        console.warn("status.json fetch failed:", err);
+      }
     }
-    if (!res.ok) throw new Error("status.json not found");
 
-    const data = await res.json();
+    if (!data) {
+      throw lastStatusError || new Error("status.json not found");
+    }
     const updated = data.updatedAtJst || data.updatedAt || data.generatedAt || "更新時刻不明";
     autoUpdated.textContent = "更新: " + updated;
 
