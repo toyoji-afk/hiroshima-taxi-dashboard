@@ -3,6 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>広島市タクシーダッシュボード</title>
   <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
@@ -22,16 +25,22 @@
   --error: #ff8a8a;
 }
 * { box-sizing: border-box; }
+html {
+  min-height: 100%;
+  -webkit-text-size-adjust: 100%;
+}
 body {
   margin: 0;
+  min-height: 100%;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: linear-gradient(180deg, #07142a 0%, #0c1b36 100%);
   color: var(--text);
+  overscroll-behavior-y: none;
 }
 .page {
   width: min(980px, 100%);
   margin: 0 auto;
-  padding: 12px 12px 74px;
+  padding: 12px 12px calc(104px + env(safe-area-inset-bottom));
 }
 header {
   display: flex;
@@ -207,12 +216,17 @@ button, .action-link {
   left: 0;
   right: 0;
   bottom: 0;
+  z-index: 9999;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 1px;
+  padding-bottom: env(safe-area-inset-bottom);
   background: rgba(0,0,0,.5);
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   border-top: 1px solid var(--line);
+  transform: translateZ(0);
+  will-change: transform;
 }
 .bottom-nav a {
   color: var(--text);
@@ -221,6 +235,7 @@ button, .action-link {
   padding: 11px 4px 13px;
   font-size: 15px;
   background: rgba(16,31,61,.92);
+  -webkit-tap-highlight-color: transparent;
 }
 footer {
   color: var(--muted);
@@ -300,7 +315,7 @@ footer {
     </section>
 
     <footer>
-      第44版：JR・空港表示調整版<br>
+      第60版：iPhoneキャッシュ回避・下部ナビ固定強化版<br>
       非公式・個人用ダッシュボード / © 2026 Toyoji Yamamoto
     </footer>
   </main>
@@ -315,13 +330,26 @@ footer {
   <script>
 
 const pad = n => String(n).padStart(2, "0");
-const now = new Date();
 const weekdays = ["日","月","火","水","木","金","土"];
-const todayKey = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
-document.getElementById("today").textContent =
-  `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${weekdays[now.getDay()]}）`;
 
-const memoKey = `hiroshimaTaxiDash:memo:${todayKey}`;
+function getTodayInfo() {
+  const now = new Date();
+  return {
+    now,
+    key: `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`,
+    text: `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${weekdays[now.getDay()]}）`
+  };
+}
+
+function updateTodayDisplay() {
+  const today = getTodayInfo();
+  const todayEl = document.getElementById("today");
+  if (todayEl) todayEl.textContent = today.text;
+  return today;
+}
+
+const todayInfo = updateTodayDisplay();
+const memoKey = `hiroshimaTaxiDash:memo:${todayInfo.key}`;
 const memo = document.getElementById("memo");
 if (memo) {
   memo.value = localStorage.getItem(memoKey) || "";
@@ -486,14 +514,23 @@ async function loadAutoSummary() {
   };
 
   try {
+    const cacheBust = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const pathParts = location.pathname.split("/").filter(Boolean);
     const repoName = pathParts[0] || "hiroshima-taxi-dashboard";
     const userName = location.hostname.replace(".github.io", "");
-    const rawStatusUrl = `https://raw.githubusercontent.com/${userName}/${repoName}/main/auto/data/status.json?v=${Date.now()}`;
-    const localStatusUrl = `data/status.json?v=${Date.now()}`;
+    const rawStatusUrl = `https://raw.githubusercontent.com/${userName}/${repoName}/main/auto/data/status.json?_=${cacheBust}`;
+    const localStatusUrl = `data/status.json?_=${cacheBust}`;
 
-    let res = await fetch(rawStatusUrl, { cache: "no-store" });
-    if (!res.ok) res = await fetch(localStatusUrl, { cache: "no-store" });
+    let res = await fetch(rawStatusUrl, {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache", "Pragma": "no-cache" }
+    });
+    if (!res.ok) {
+      res = await fetch(localStatusUrl, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache", "Pragma": "no-cache" }
+      });
+    }
     if (!res.ok) throw new Error("status.json not found");
 
     const data = await res.json();
@@ -532,6 +569,23 @@ async function loadAutoSummary() {
 }
 
 loadAutoSummary();
+
+let lastAutoRefreshAt = 0;
+async function refreshAutoDashboard(reason = "manual") {
+  const now = Date.now();
+  // pageshow と visibilitychange が連続で来る場合があるため、短時間の二重実行を抑える。
+  if (now - lastAutoRefreshAt < 1500) return;
+  lastAutoRefreshAt = now;
+  updateTodayDisplay();
+  await loadAutoSummary();
+}
+
+// iPhoneのホーム画面アイコンやChrome/Safariの復帰時に、古いstatus.jsonを表示し続けない。
+window.addEventListener("pageshow", () => refreshAutoDashboard("pageshow"));
+window.addEventListener("focus", () => refreshAutoDashboard("focus"));
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) refreshAutoDashboard("visible");
+});
 
   </script>
 </body>
