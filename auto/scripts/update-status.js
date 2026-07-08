@@ -1,4 +1,4 @@
-// update-status.js v65: airport time-change detection
+// update-status.js v66: airport arrival URL and time-change/delay detection
 // 広島市タクシーダッシュボード：本日の自動巡回メモ生成
 // Node.js 20+ / GitHub Actions
 //
@@ -22,7 +22,7 @@ const URLS = {
   hiroshimaBus: 'https://hirobus-info-rosen.jp/',
   hiroshimaKotsu: 'https://www.hiroko-group.co.jp/kotsu/rosen_unkou.htm',
   airportDomesticDepartures: 'https://www.hij.airport.jp/flight/flight_dd.html',
-  airportDomesticArrivals: 'https://www.hij.airport.jp/flight/flight_ad.html',
+  airportDomesticArrivals: 'https://www.hij.airport.jp/flight/flight_da.html',
   airportInternationalDepartures: 'https://www.hij.airport.jp/flight/flight_id.html',
   airportInternationalArrivals: 'https://www.hij.airport.jp/flight/flight_ia.html',
   carp: 'https://www.ticket.carp.co.jp/calendar/',
@@ -30,7 +30,7 @@ const URLS = {
   sanfrecce: 'https://www.sanfrecce.co.jp/matches/results',
 };
 
-const USER_AGENT = 'Mozilla/5.0 GitHubActions HiroshimaTaxiDashboard/65.0';
+const USER_AGENT = 'Mozilla/5.0 GitHubActions HiroshimaTaxiDashboard/66.0';
 
 function nowIsoJst() {
   return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tokyo' }).replace(' ', 'T') + '+09:00';
@@ -996,35 +996,38 @@ async function getAirportStatus() {
       }
     }
 
-    const hasByGroup = (group, word) => records.some(r => r.group === group && String(r.text || '').includes(word));
-    const hasAnyByGroup = (group, words) => words.some(w => hasByGroup(group, w));
+    const groupText = group => compactText(records
+      .filter(r => r.group === group)
+      .map(r => r.text)
+      .join(' '));
 
-    // 広島空港公式のフライト表では「時刻変更」が出ることがある。
-    // タクシー送迎では到着・出発時刻の変更も重要なので、注意扱いにする。
-    const timeChangeGroups = [];
-    if (hasByGroup('国内線', '時刻変更')) timeChangeGroups.push('国内線');
-    if (hasByGroup('国際線', '時刻変更')) timeChangeGroups.push('国際線');
+    const groups = ['国内線', '国際線'];
+    const groupMessages = [];
 
-    if (timeChangeGroups.length) {
-      return makeItem(
-        name,
-        `${timeChangeGroups.join('・')}時刻変更あり。公式フライト情報確認`,
-        '要確認',
-        URLS.airportDomesticDepartures
-      );
+    for (const group of groups) {
+      const t = groupText(group);
+      if (!t) continue;
+
+      const flags = [];
+      if (t.includes('時刻変更')) flags.push('時刻変更');
+
+      // 広島空港公式の表では「遅延」ではなく「遅れ」と出ることがある。
+      if (/遅延|遅れ/.test(t)) flags.push('遅れ');
+
+      const otherWords = ['欠航', '条件付き', '天候調査', '引き返し', '目的地変更', '欠便'];
+      for (const word of otherWords) {
+        if (t.includes(word)) flags.push(word);
+      }
+
+      if (flags.length) {
+        groupMessages.push(`${group}${[...new Set(flags)].join('・')}あり`);
+      }
     }
 
-    const seriousWords = ['欠航', '遅延', '条件付き', '天候調査', '引き返し', '目的地変更', '欠便'];
-    const seriousGroups = [];
-    if (hasAnyByGroup('国内線', seriousWords)) seriousGroups.push('国内線');
-    if (hasAnyByGroup('国際線', seriousWords)) seriousGroups.push('国際線');
-
-    if (seriousGroups.length) {
-      const all = records.map(r => r.text).join(' ');
-      const found = seriousWords.filter(w => all.includes(w));
+    if (groupMessages.length) {
       return makeItem(
         name,
-        `${seriousGroups.join('・')}に${[...new Set(found)].join('・')}の表示あり。公式フライト情報確認`,
+        `${groupMessages.join('、')}。公式フライト情報確認`,
         '要確認',
         URLS.airportDomesticDepartures
       );
