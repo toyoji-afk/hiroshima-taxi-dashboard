@@ -1,21 +1,6 @@
 name: Update Status
 
 "on":
-  schedule:
-    # GitHub Actions cron is UTC.
-    # JST: 0:23 / 3:23 / 5:23 / 9:23 / 12:23 / 15:23 / 18:23 / 21:23
-    #
-    # Split into separate cron entries to make the schedule registration explicit.
-    # Morning check is set to 5:23 JST so the dashboard is updated before a 6:30 roll call.
-    # Avoid :00 and near-hour times because scheduled workflows can be delayed or dropped during high load.
-    - cron: "23 15 * * *" # JST 0:23
-    - cron: "23 18 * * *" # JST 3:23
-    - cron: "23 20 * * *" # JST 5:23
-    - cron: "23 0 * * *"  # JST 9:23
-    - cron: "23 3 * * *"  # JST 12:23
-    - cron: "23 6 * * *"  # JST 15:23
-    - cron: "23 9 * * *"  # JST 18:23
-    - cron: "23 12 * * *" # JST 21:23
   workflow_dispatch:
 
 permissions:
@@ -29,25 +14,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
       - name: Install Playwright
-        run: npm i playwright
+        run: |
+          npm i playwright
+          npx playwright install --with-deps chromium
 
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-
-      - name: Update status
+      - name: Run update script
         run: node auto/scripts/update-status.js
 
-      - name: Commit status.json
+      - name: Commit updated status
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add auto/data/status.json
-          git add auto/data/debug || true
-          git commit -m "Update status" || echo "No changes"
-          git push
+          git add auto/data/status.json auto/data/debug || true
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update auto status"
+            git push
+          fi
