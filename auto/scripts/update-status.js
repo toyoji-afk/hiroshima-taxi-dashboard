@@ -1,4 +1,4 @@
-// update-status.js v66: airport arrival URL and time-change/delay detection
+// update-status.js v68: airport parser module
 // 広島市タクシーダッシュボード：本日の自動巡回メモ生成
 // Node.js 20+ / GitHub Actions
 //
@@ -30,7 +30,7 @@ const URLS = {
   sanfrecce: 'https://www.sanfrecce.co.jp/matches/results',
 };
 
-const USER_AGENT = 'Mozilla/5.0 GitHubActions HiroshimaTaxiDashboard/66.0';
+const USER_AGENT = 'Mozilla/5.0 GitHubActions HiroshimaTaxiDashboard/68.0';
 
 function nowIsoJst() {
   return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tokyo' }).replace(' ', 'T') + '+09:00';
@@ -977,66 +977,10 @@ async function getHiroshimaKotsuStatus() {
 }
 
 async function getAirportStatus() {
-  const name = '広島空港';
-  try {
-    const pages = [
-      ['国内線出発', '国内線', URLS.airportDomesticDepartures],
-      ['国内線到着', '国内線', URLS.airportDomesticArrivals],
-      ['国際線出発', '国際線', URLS.airportInternationalDepartures],
-      ['国際線到着', '国際線', URLS.airportInternationalArrivals],
-    ];
-
-    const records = [];
-    for (const [label, group, url] of pages) {
-      try {
-        const { text } = await fetchText(url, `airport-${label}`);
-        records.push({ label, group, text });
-      } catch (e) {
-        console.log(`[airport] ${label} failed: ${e.message}`);
-      }
-    }
-
-    const groupText = group => compactText(records
-      .filter(r => r.group === group)
-      .map(r => r.text)
-      .join(' '));
-
-    const groups = ['国内線', '国際線'];
-    const groupMessages = [];
-
-    for (const group of groups) {
-      const t = groupText(group);
-      if (!t) continue;
-
-      const flags = [];
-      if (t.includes('時刻変更')) flags.push('時刻変更');
-
-      // 広島空港公式の表では「遅延」ではなく「遅れ」と出ることがある。
-      if (/遅延|遅れ/.test(t)) flags.push('遅れ');
-
-      const otherWords = ['欠航', '条件付き', '天候調査', '引き返し', '目的地変更', '欠便'];
-      for (const word of otherWords) {
-        if (t.includes(word)) flags.push(word);
-      }
-
-      if (flags.length) {
-        groupMessages.push(`${group}${[...new Set(flags)].join('・')}あり`);
-      }
-    }
-
-    if (groupMessages.length) {
-      return makeItem(
-        name,
-        `${groupMessages.join('、')}。公式フライト情報確認`,
-        '要確認',
-        URLS.airportDomesticDepartures
-      );
-    }
-
-    return makeItem(name, '平常運航', '平常運航', URLS.airportDomesticDepartures);
-  } catch (e) {
-    return errorItem(name, e, URLS.airportDomesticDepartures);
-  }
+  // 広島空港のフライト表はページ表示後にJavaScriptで読み込まれるため、
+  // JR西日本と同じく専用パーサーでPlaywright描画後のテキストを見ます。
+  const { getAirportStatus: getAirportStatusFromParser } = require('./hiroshima-airport-parser');
+  return await getAirportStatusFromParser();
 }
 
 
