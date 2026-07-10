@@ -191,6 +191,27 @@ button, .action-link {
   text-decoration: none;
   font-size: 17px;
 }
+
+.reload-auto {
+  width: auto;
+  min-width: 74px;
+  display: inline-block;
+  margin-top: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 13px;
+  line-height: 1;
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+}
+.auto-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
 .qr-wrap {
   display: grid;
   grid-template-columns: 112px 1fr;
@@ -278,7 +299,10 @@ footer {
 <section class="auto-box">
   <div class="auto-head">
     <h2>自動巡回メモ</h2>
-    <div id="autoUpdated" class="updated">読み込み中</div>
+    <div class="auto-tools">
+      <div id="autoUpdated" class="updated">読み込み中</div>
+      <button id="reloadAuto" class="reload-auto" type="button">再読込</button>
+    </div>
   </div>
   <ul id="autoList" class="auto-list">
     <li><span class="badge">確認中</span>巡回データを読み込んでいます。</li>
@@ -293,16 +317,6 @@ footer {
       </section>
     </div>
 
-    <section id="memo" class="memo-box">
-      <h2>今日のメモ</h2>
-      <textarea id="memo" placeholder="気になった道路、イベント、注意点など"></textarea>
-      <button id="copyMemo" type="button">メモをコピー</button>
-    </section>
-
-    <section class="bottom-actions">
-      <a class="action-link" href="../">手動リンク版を開く</a>
-    </section>
-
     <section class="qr-box">
       <h2>共有用QRコード</h2>
       <div class="qr-wrap">
@@ -315,7 +329,7 @@ footer {
     </section>
 
     <footer>
-      第63版：表示文言整理版<br>
+      第72版：自動巡回再読込強化・メモ欄整理版<br>
       非公式・個人用ダッシュボード / © 2026 Toyoji Yamamoto
     </footer>
   </main>
@@ -348,30 +362,7 @@ function updateTodayDisplay() {
   return today;
 }
 
-const todayInfo = updateTodayDisplay();
-const memoKey = `hiroshimaTaxiDash:memo:${todayInfo.key}`;
-const memo = document.getElementById("memo");
-if (memo) {
-  memo.value = localStorage.getItem(memoKey) || "";
-  memo.addEventListener("input", () => localStorage.setItem(memoKey, memo.value));
-}
-
-const copyMemo = document.getElementById("copyMemo");
-if (copyMemo && memo) {
-  copyMemo.addEventListener("click", async () => {
-    const text = memo.value.trim();
-    if (!text) {
-      alert("メモ欄が空です。");
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(text);
-      alert("メモをコピーしました。");
-    } catch (e) {
-      alert("コピーできませんでした。メモを長押しして選択コピーしてください。");
-    }
-  });
-}
+updateTodayDisplay();
 
 function escapeHtml(str) {
   return String(str).replace(/[&<>'"]/g, c => ({
@@ -439,6 +430,9 @@ async function loadAutoSummary() {
   const autoList = document.getElementById("autoList");
   const autoUpdated = document.getElementById("autoUpdated");
   if (!autoList || !autoUpdated) return;
+
+  autoUpdated.textContent = "更新確認中";
+  autoList.innerHTML = "<li><span class='badge'>確認中</span>巡回データを再読み込みしています。</li>";
 
   const pick = (item, keys, fallback = "") => {
     for (const key of keys) {
@@ -522,10 +516,10 @@ async function loadAutoSummary() {
     // iPhoneのホーム画面アイコン経由では、/auto と /auto/ の扱いで
     // 相対パス data/status.json が外れることがあるため、候補URLを順番に試す。
     const statusUrls = [
+      `https://raw.githubusercontent.com/${userName}/${repoName}/main/auto/data/status.json?_=${cacheBust}`,
       `./data/status.json?_=${cacheBust}`,
       `/hiroshima-taxi-dashboard/auto/data/status.json?_=${cacheBust}`,
-      `/${repoName}/auto/data/status.json?_=${cacheBust}`,
-      `https://raw.githubusercontent.com/${userName}/${repoName}/main/auto/data/status.json?_=${cacheBust}`
+      `/${repoName}/auto/data/status.json?_=${cacheBust}`
     ];
 
     let data = null;
@@ -584,22 +578,30 @@ async function loadAutoSummary() {
 }
 
 loadAutoSummary();
+// 初回表示直後にもう一度取り直す。Safari/ホーム画面の古い表示残り対策。
+setTimeout(() => refreshAutoDashboard("initial-second-load", true), 1200);
 
 let lastAutoRefreshAt = 0;
-async function refreshAutoDashboard(reason = "manual") {
+async function refreshAutoDashboard(reason = "manual", force = false) {
   const now = Date.now();
   // pageshow と visibilitychange が連続で来る場合があるため、短時間の二重実行を抑える。
-  if (now - lastAutoRefreshAt < 1500) return;
+  // 手動ボタンと初回二度読みは force で必ず通す。
+  if (!force && now - lastAutoRefreshAt < 1500) return;
   lastAutoRefreshAt = now;
   updateTodayDisplay();
   await loadAutoSummary();
 }
 
+const reloadAuto = document.getElementById("reloadAuto");
+if (reloadAuto) {
+  reloadAuto.addEventListener("click", () => refreshAutoDashboard("button", true));
+}
+
 // iPhoneのホーム画面アイコンやChrome/Safariの復帰時に、古いstatus.jsonを表示し続けない。
-window.addEventListener("pageshow", () => refreshAutoDashboard("pageshow"));
+window.addEventListener("pageshow", () => refreshAutoDashboard("pageshow", true));
 window.addEventListener("focus", () => refreshAutoDashboard("focus"));
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) refreshAutoDashboard("visible");
+  if (!document.hidden) refreshAutoDashboard("visible", true);
 });
 
   </script>
