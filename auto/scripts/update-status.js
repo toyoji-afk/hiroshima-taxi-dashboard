@@ -1,4 +1,4 @@
-// update-status.js v68: airport parser module
+// update-status.js v70: carp home-game strict date-section fix
 // 広島市タクシーダッシュボード：本日の自動巡回メモ生成
 // Node.js 20+ / GitHub Actions
 //
@@ -30,7 +30,7 @@ const URLS = {
   sanfrecce: 'https://www.sanfrecce.co.jp/matches/results',
 };
 
-const USER_AGENT = 'Mozilla/5.0 GitHubActions HiroshimaTaxiDashboard/68.0';
+const USER_AGENT = 'Mozilla/5.0 GitHubActions HiroshimaTaxiDashboard/70.0';
 
 function nowIsoJst() {
   return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tokyo' }).replace(' ', 'T') + '+09:00';
@@ -1036,9 +1036,10 @@ function extractNpbCarpHomeGame(text, today = todayJstParts()) {
   const day = Number(today.day);
   const month = Number(today.month);
 
-  // NPB公式ページには、上部の簡易リンク欄と本文の詳細欄の両方に同じ日付が出ます。
-  // 先頭の「7/7 Tue.」だけを見るとチーム名がなく検出漏れするため、
-  // 今日の日付候補を全部見て、広島・マツダ・時刻が揃う候補を採用します。
+  // NPB公式ページには、上部の簡易日付リンクと本文の詳細欄の両方に同じ日付が出ます。
+  // 以前は今日の日付から広めに2600文字を見ていたため、別日の「マツダスタジアム」を拾う誤検出がありました。
+  // ここでは「今日の日付ブロック」かつ「同じ試合らしい短い範囲」に
+  // 広島 + マツダ + 時刻 が揃う場合だけ本拠地開催扱いにします。
   const datePatterns = [
     today.ymdHyphen,
     today.ymdSlash,
@@ -1055,39 +1056,83 @@ function extractNpbCarpHomeGame(text, today = todayJstParts()) {
 
   if (!starts.length) return null;
 
-  const teams = ['ヤクルト', '巨人', '阪神', 'DeNA', 'ＤｅＮＡ', '中日', '広島',
-                 '日本ハム', '楽天', '西武', 'ロッテ', 'オリックス', 'ソフトバンク'];
+  const teams = [
+    'ヤクルト', '巨人', '阪神', 'DeNA', 'ＤｅＮＡ', '中日', '広島',
+    '日本ハム', '楽天', '西武', 'ロッテ', 'オリックス', 'ソフトバンク'
+  ];
+
+  const nextDateRe = /\b\d{1,2}[\/.]\d{1,2}(?:\s*[A-Za-z]{3}\.?)?|\d{1,2}月\d{1,2}日|\b20\d{2}[\/-]\d{1,2}[\/-]\d{1,2}\b/g;
+
+  function todaySectionFrom(start) {
+    const afterStart = t.slice(start + 1);
+    let next = -1;
+    let m;
+    while ((m = nextDateRe.exec(afterStart)) !== null) {
+      const idx = start + 1 + m.index;
+      // 近すぎるものは同じ日付表記の揺れとして無視。
+      if (idx - start < 12) continue;
+      next = idx;
+      break;
+    }
+
+    const end = next > 0 ? next : Math.min(t.length, start + 1800);
+    return t.slice(start, end).trim();
+  }
+
+  function splitGameLikeChunks(section) {
+    const chunks = [];
+
+    // 時刻を中心に前後を見る。試合ごとの情報が連続していても、別試合を巻き込みにくい。
+    const timeMatches = [...section.matchAll(/\b\d{1,2}:\d{2}\b/g)];
+    for (const m of timeMatches) {
+      const i = m.index;
+      const start = Math.max(0, i - 220);
+      const end = Math.min(section.length, i + 220);
+      chunks.push(section.slice(start, end));
+    }
+
+    const rough = section.split(/(?=ヤクルト|巨人|阪神|DeNA|ＤｅＮＡ|中日|広島|日本ハム|楽天|西武|ロッテ|オリックス|ソフトバンク)/);
+    for (const c of rough) {
+      if (/\b\d{1,2}:\d{2}\b/.test(c)) chunks.push(c.slice(0, 360));
+    }
+
+    return chunks.map(compactText).filter(Boolean);
+  }
 
   let bestCandidate = null;
 
   for (const start of starts) {
-    // 当日詳細欄の複数試合を含むように広めに見る。
-    // 次日付で切る処理は、上部簡易リンク欄で短く切れすぎるため使わない。
-    const section = t.slice(start, Math.min(t.length, start + 2600)).trim();
+    const section = todaySectionFrom(start);
 
-    const hasMazda = /マツダスタジアム|マツダ|MAZDA|Zoom-Zoom|ズムスタ/i.test(section);
-    const hasHiroshima = /広島/.test(section);
-    const time = (section.match(/\b\d{1,2}:\d{2}\b/) || [])[0] || '';
+    // 今日ブロック内に時刻がないものは、上部の単なる日付リンクの可能性が高い。
+    if (!/\b\d{1,2}:\d{2}\b/.test(section)) continue;
 
-    if (!hasMazda || !hasHiroshima || !time) continue;
+    const chunks = splitGameLikeChunks(section);
 
-    let opponent = '';
+    for (const chunk of chunks) {
+      const hasMazda = /マツダスタジアム|マツダ|MAZDA|Zoom-Zoom|ズムスタ/i.test(chunk);
+      const hasHiroshima = /広島/.test(chunk);
+      const time = (chunk.match(/\b\d{1,2}:\d{2}\b/) || [])[0] || '';
 
-    // 「広島 - ヤクルト」「ヤクルト - 広島」のような並びを広めに見る。
-    for (const team of teams) {
-      if (team === '広島') continue;
-      const re1 = new RegExp(`広島.{0,120}${team}`);
-      const re2 = new RegExp(`${team}.{0,120}広島`);
-      if (re1.test(section) || re2.test(section)) {
-        opponent = team.replace('ＤｅＮＡ', 'DeNA');
-        break;
+      // 本拠地判定は「同じ短い試合範囲」に広島・マツダ・時刻が揃う場合のみ。
+      // これにより、7/11 中日－広島 バンテリンドームのようなビジター試合では検出しない。
+      if (!hasMazda || !hasHiroshima || !time) continue;
+
+      let opponent = '';
+      for (const team of teams) {
+        if (team === '広島') continue;
+        const re1 = new RegExp(`広島.{0,80}${team}`);
+        const re2 = new RegExp(`${team}.{0,80}広島`);
+        if (re1.test(chunk) || re2.test(chunk)) {
+          opponent = team.replace('ＤｅＮＡ', 'DeNA');
+          break;
+        }
       }
-    }
 
-    // 対戦相手まで取れた候補を最優先。
-    const candidate = { opponent, time, section };
-    if (opponent) return candidate;
-    if (!bestCandidate) bestCandidate = candidate;
+      const candidate = { opponent, time, section: chunk };
+      if (opponent) return candidate;
+      if (!bestCandidate) bestCandidate = candidate;
+    }
   }
 
   return bestCandidate;
