@@ -285,7 +285,31 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     });
   }
 </script>
-
+<div class="banner_ribbon" id="allstargame">
+	<div class="wrap">
+		<a href="/allstar/2026/homerun_how.html" onclick="ga('send', 'event', 'ribon', 'click', this.href);">
+			<dl>
+				<dt><img src="//p.npb.jp/img/allstar/2026/ctop_word.png" title="マイナビオールスターゲーム2026"></dt>
+				<dd>ホームランダービーファン投票受付中！<br>7月20日（月）まで</dd>
+			</dl>
+		</a>
+	</div>
+</div>
+<div class="banner_ribbon" id="allstargame">
+	<div class="wrap">
+		<a href="/allstar/2026/plusone_how.html" onclick="ga('send', 'event', 'ribon', 'click', this.href);">
+			<dl>
+				<dt><img src="//p.npb.jp/img/allstar/2026/ctop_word.png" title="マイナビオールスターゲーム2026"></dt>
+				<dd>プラスワン投票受付中！ 7月20日（月）まで</dd>
+			</dl>
+		</a>
+	</div>
+</div>
+<script>
+	var $ribbon = $(".banner_ribbon");
+	var rnd = Math.floor( Math.random() * $ribbon.length );
+	$ribbon.hide().eq(rnd).show();
+</script>
   <h2 class="cate_games">
 	<div>
 		<span id="h2_text"><a href="/games/2026/">セ・パ公式戦</a></span>
