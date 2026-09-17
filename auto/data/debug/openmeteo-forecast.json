@@ -1,7 +1,7 @@
 {
   "latitude": 34.4,
   "longitude": 132.4375,
-  "generationtime_ms": 0.8862018585205078,
+  "generationtime_ms": 0.11026859283447266,
   "utc_offset_seconds": 32400,
   "timezone": "Asia/Tokyo",
   "timezone_abbreviation": "GMT+9",
@@ -13,9 +13,9 @@
     "weather_code": "wmo code"
   },
   "current": {
-    "time": "2026-09-17T21:15",
+    "time": "2026-09-17T22:15",
     "interval": 900,
-    "temperature_2m": 24.3,
+    "temperature_2m": 23.5,
     "weather_code": 1
   },
   "hourly_units": {
@@ -71,12 +71,12 @@
       30.3,
       29.8,
       28.9,
-      27.1,
+      27.2,
       25.9,
-      25.1,
-      24.5,
-      23.9,
-      23.6
+      25,
+      24.3,
+      23.6,
+      23.3
     ],
     "precipitation_probability": [
       0,
@@ -150,9 +150,9 @@
       1,
       1,
       1,
+      0,
       1,
-      1,
-      1,
+      0,
       1,
       1
     ]
