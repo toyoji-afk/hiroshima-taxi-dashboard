@@ -82,7 +82,41 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 
 <header>
   <!-- 試合速報のインクルード取込 ここから -->
-  
+  <div id="header_score">
+  <div class="score_wrap">
+    <div class="score_box date"><div>2026<br>10/10 Sat.</div></div>
+
+        <div class="score_box">
+      <a href="/scores/2026/1010/g-db-01/">
+      <div>
+        <img src="/img/common/logo/2026/logo_g_s.gif" alt="読売ジャイアンツ" title="読売ジャイアンツ" class="logo_left">
+        <img src="/img/common/logo/2026/logo_db_s.gif" alt="横浜DeNAベイスターズ" title="横浜DeNAベイスターズ" class="logo_right">
+        <div class="score">-</div>
+        <div class="state">（東京ドーム）<br class="hide_pc">14:00</div>
+      </div>
+      </a>
+    </div>
+        <div class="score_box">
+      <a href="/scores/2026/1010/l-f-01/">
+      <div>
+        <img src="/img/common/logo/2026/logo_l_s.gif" alt="埼玉西武ライオンズ" title="埼玉西武ライオンズ" class="logo_left">
+        <img src="/img/common/logo/2026/logo_f_s.gif" alt="北海道日本ハムファイターズ" title="北海道日本ハムファイターズ" class="logo_right">
+        <div class="score">-</div>
+        <div class="state">（ベルーナ）<br class="hide_pc">14:00</div>
+      </div>
+      </a>
+    </div>
+    
+    <div class="score_box detail hide_sp"><a href="/scores/">&gt;&gt;</a></div>
+  </div>
+  <div class="score_box detail hide_pc"><a href="/scores/">&gt;&gt;</a></div>
+</div>
+<script>
+$(function($) {
+  $('#header_team').addClass("hide_pc");
+});
+</script>
+
   <!-- 試合速報のインクルード取込 ここまで -->
   
   <div id="header_team" class="hide_sp">
@@ -955,14 +989,14 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
                                                     敗：ルーカス                                                  </div>
                       </td>
                                       </tr>
-                                                                                                                  <tr id="date1009" class="open last">
+                                                                                                                  <tr id="date1009" class=" last">
                   <th class="" rowspan="1">10/9（金）</th>
                   <td>&nbsp;</td>
                   <td>&nbsp;</td>
                   <td>&nbsp;</td>
                   <td>&nbsp;</td>
                 </tr>
-                                                                                                                                      <tr id="date1010" class="">
+                                                                                                                                      <tr id="date1010" class="open">
                                           <th class="saturday" rowspan="2">10/10（土）</th>
                     
                       <td>
@@ -985,12 +1019,12 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 
                                           <td>
                         <div class="pit">
-                                                  </div>
+                                                    先発：井上                                                  </div>
                         <div class="pit">
-                                                  </div>
+                                                    先発：東                                                  </div>
                       </td>
                                       </tr>
-                                                    <tr id="date1010" class=" last">
+                                                    <tr id="date1010" class="open last">
                     
                       <td>
                         <div class="team1">西武</div>                        
@@ -1012,9 +1046,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 
                                           <td>
                         <div class="pit">
-                                                  </div>
+                                                    先発：平良                                                  </div>
                         <div class="pit">
-                                                  </div>
+                                                    先発：有原                                                  </div>
                       </td>
                                       </tr>
                                                                                                                                                       <tr id="date1011" class="">
@@ -1272,7 +1306,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
                         <div class="place">甲子園</div>
                         <div class="time">18:00</div>
                         <div class="weather">
-                                                      &nbsp;
+                                                                                  <img src="/img/common/weather/09.gif" alt="くもり時々晴れ" width="48" height="26">
                                                   </div>
                       </td>
                       <td>
@@ -1292,7 +1326,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
                         <div class="place">みずほPayPay</div>
                         <div class="time">18:00</div>
                         <div class="weather">
-                                                      &nbsp;
+                                                                                  <img src="/img/common/weather/09.gif" alt="くもり時々晴れ" width="48" height="26">
                                                   </div>
                       </td>
                       <td>
