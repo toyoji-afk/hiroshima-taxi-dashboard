@@ -1,0 +1,9 @@
+page.goto: net::ERR_NAME_NOT_RESOLVED at https://www.hij.airport.jp/flight/flight_dd.html?_=1795847028657
+Call log:
+  - navigating to "https://www.hij.airport.jp/flight/flight_dd.html?_=1795847028657", waiting until "networkidle"
+
+    at getRenderedText (/home/runner/work/hiroshima-taxi-dashboard/hiroshima-taxi-dashboard/auto/scripts/hiroshima-airport-parser.js:73:14)
+    at getAirportStatus (/home/runner/work/hiroshima-taxi-dashboard/hiroshima-taxi-dashboard/auto/scripts/hiroshima-airport-parser.js:167:28)
+    at async getAirportStatus (/home/runner/work/hiroshima-taxi-dashboard/hiroshima-taxi-dashboard/auto/scripts/update-status.js:983:10)
+    at async safeGet (/home/runner/work/hiroshima-taxi-dashboard/hiroshima-taxi-dashboard/auto/scripts/update-status.js:1249:12)
+    at async main (/home/runner/work/hiroshima-taxi-dashboard/hiroshima-taxi-dashboard/auto/scripts/update-status.js:1269:25)
