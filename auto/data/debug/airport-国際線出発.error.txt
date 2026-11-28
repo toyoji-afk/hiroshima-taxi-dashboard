@@ -1,6 +1,6 @@
-page.goto: net::ERR_NAME_NOT_RESOLVED at https://www.hij.airport.jp/flight/flight_id.html?_=1795847061593
+page.goto: net::ERR_NAME_NOT_RESOLVED at https://www.hij.airport.jp/flight/flight_id.html?_=1795850666724
 Call log:
-  - navigating to "https://www.hij.airport.jp/flight/flight_id.html?_=1795847061593", waiting until "networkidle"
+  - navigating to "https://www.hij.airport.jp/flight/flight_id.html?_=1795850666724", waiting until "networkidle"
 
     at getRenderedText (/home/runner/work/hiroshima-taxi-dashboard/hiroshima-taxi-dashboard/auto/scripts/hiroshima-airport-parser.js:73:14)
     at getAirportStatus (/home/runner/work/hiroshima-taxi-dashboard/hiroshima-taxi-dashboard/auto/scripts/hiroshima-airport-parser.js:167:28)
