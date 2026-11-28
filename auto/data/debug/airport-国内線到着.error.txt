@@ -1,6 +1,6 @@
-page.goto: net::ERR_NAME_NOT_RESOLVED at https://www.hij.airport.jp/flight/flight_da.html?_=1795850649420
+page.goto: Timeout 45000ms exceeded.
 Call log:
-  - navigating to "https://www.hij.airport.jp/flight/flight_da.html?_=1795850649420", waiting until "networkidle"
+  - navigating to "https://www.hij.airport.jp/flight/flight_da.html?_=1795854292874", waiting until "networkidle"
 
     at getRenderedText (/home/runner/work/hiroshima-taxi-dashboard/hiroshima-taxi-dashboard/auto/scripts/hiroshima-airport-parser.js:73:14)
     at getAirportStatus (/home/runner/work/hiroshima-taxi-dashboard/hiroshima-taxi-dashboard/auto/scripts/hiroshima-airport-parser.js:167:28)
